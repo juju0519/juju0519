@@ -1,0 +1,736 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Calculadora Revisional Price</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Lato:wght@300;400;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: formulário fixo à esquerda (condições do contrato), resultados à direita; uma coluna no celular. */
+:root{
+  --bg:#ffffff;--card:#ffffff;--fg:#221d19;--muted:#6b6259;--line:#e9e3dc;--input:#d6cec4;--soft:#f7f4f0;
+  --gold:#b39a5f;--gold-ink:#74592f;--on-gold:#221d19;
+  --req:#c62828;--crit:#7a2432;--crit-bg:#faf0f1;--crit-line:#e2bcc2;
+  --warn:#8f4a28;--warn-bg:#fbf1ea;--warn-line:#e6c5b3;
+  --ok:#55642f;--ok-bg:#f3f5ec;--ok-line:#cfd5bd;
+  --info:#74592f;--info-bg:#faf6ee;--info-line:#e2d4b6;
+  --f-display:"Cormorant Garamond",Garamond,"Times New Roman",serif;
+  --f-body:Lato,"Segoe UI",system-ui,sans-serif;
+  --f-num:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#191613;--card:#211d19;--fg:#ece6de;--muted:#a69c90;--line:#38312a;--input:#4a4239;--soft:#2a2520;
+  --gold:#c4ab70;--gold-ink:#d8c08a;--on-gold:#191613;
+  --req:#ff6b6b;--crit:#e48a98;--crit-bg:#2e1c1f;--crit-line:#5e3239;
+  --warn:#e3a07c;--warn-bg:#2e221b;--warn-line:#5c3f2e;
+  --ok:#b5c48a;--ok-bg:#232619;--ok-line:#454c2f;
+  --info:#d8c08a;--info-bg:#2a251b;--info-line:#544731;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#191613;--card:#211d19;--fg:#ece6de;--muted:#a69c90;--line:#38312a;--input:#4a4239;--soft:#2a2520;
+  --gold:#c4ab70;--gold-ink:#d8c08a;--on-gold:#191613;
+  --req:#ff6b6b;--crit:#e48a98;--crit-bg:#2e1c1f;--crit-line:#5e3239;
+  --warn:#e3a07c;--warn-bg:#2e221b;--warn-line:#5c3f2e;
+  --ok:#b5c48a;--ok-bg:#232619;--ok-line:#454c2f;
+  --info:#d8c08a;--info-bg:#2a251b;--info-line:#544731;
+  color-scheme:dark}
+*,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none!important}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:14px;line-height:1.5;margin:0}
+h1,h2,h3{font-family:var(--f-display);font-weight:600;margin:0;text-wrap:balance;font-variant-numeric:lining-nums}
+p{margin:0}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer;background:none;border:0;padding:0}
+:focus-visible{outline:2px solid var(--gold);outline-offset:1px}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+.wrap{max-width:1360px;margin:0 auto;padding:24px 16px;display:flex;flex-direction:column;gap:24px}
+@media (min-width:640px){.wrap{padding-inline:24px}}
+.brand{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:8px 24px;border-bottom:2px solid var(--gold);padding-bottom:12px}
+.wordmark{font-family:var(--f-display);font-size:30px;line-height:1;font-weight:500;letter-spacing:.01em}
+.wordmark span{color:var(--gold)}
+.tracked{letter-spacing:.28em;text-transform:uppercase;color:var(--muted);font-size:11px;font-weight:300}
+.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+.top h1{font-size:32px;line-height:1.2}
+.lede{color:var(--muted);max-width:72ch;margin-top:4px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.btn{border:1px solid var(--input);background:var(--card);border-radius:4px;padding:6px 12px;font-size:13px;font-weight:500}
+.btn:hover{background:var(--soft)}
+.btn-sm{border:1px solid var(--line);border-radius:4px;padding:4px 10px;font-size:12px;font-weight:500;background:var(--card)}
+.btn-sm:hover{background:var(--soft)}
+.btn-pri{background:var(--gold);color:var(--on-gold);border-radius:4px;padding:6px 12px;font-size:13px;font-weight:700}
+.btn-pri:hover{filter:brightness(.95)}
+.confirm{display:flex;align-items:center;gap:8px;border:1px solid var(--warn-line);background:var(--warn-bg);border-radius:4px;padding:4px 10px;font-size:12.5px}
+.confirm button{text-decoration:underline;font-weight:500}
+.confirm .del{color:var(--warn);font-weight:700}
+.banner{border-left:2px solid var(--gold);background:var(--soft);padding:8px 12px;font-size:13px;border-radius:2px}
+.grid-main{display:grid;gap:24px;align-items:start}
+@media (min-width:1024px){.grid-main{grid-template-columns:390px minmax(0,1fr)}
+  .form{position:sticky;top:16px;max-height:calc(100vh - 32px);overflow-y:auto}}
+.form{display:flex;flex-direction:column;gap:20px;border:1px solid var(--line);background:var(--card);border-radius:4px;padding:16px;min-width:0}
+fieldset{border:0;border-top:1px solid var(--line);margin:0;padding:16px 0 0;display:flex;flex-direction:column;gap:12px;min-width:0}
+fieldset:first-of-type{border-top:0;padding-top:0}
+legend{float:left;width:100%;padding:0;margin-bottom:12px;font-size:10.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+legend+*{clear:both}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.lbl{font-size:12px;font-weight:500;color:var(--muted)}
+.box{display:flex;align-items:center;border:1px solid var(--input);border-radius:4px;background:var(--card)}
+.box:focus-within{border-color:var(--gold)}
+.box input{width:100%;min-width:0;border:0;background:transparent;padding:6px 10px;font-size:13px;outline:none;font-family:var(--f-num)}
+.box .suf{padding-right:10px;font-size:12px;color:var(--muted);white-space:nowrap}
+.field.err .box{border-color:var(--crit);background:var(--crit-bg)}
+.hint{font-size:11px;color:var(--muted)}
+.req{color:var(--req);margin-left:2px;font-weight:700}
+.errmsg{font-size:11px;font-weight:700;color:var(--crit)}
+.seg{display:flex;border:1px solid var(--input);border-radius:4px;overflow:hidden}
+.seg button{flex:1;padding:6px 8px;font-size:12.5px;font-weight:500;background:var(--card)}
+.seg button+button{border-left:1px solid var(--input)}
+.seg button:hover{background:var(--soft)}
+.seg button[aria-checked="true"]{background:var(--gold);color:var(--on-gold);font-weight:700}
+.check{display:flex;align-items:flex-start;gap:8px;font-size:12.5px}
+.check input{margin-top:3px;accent-color:var(--gold)}
+.mini-row{display:grid;grid-template-columns:1fr 1fr 24px;gap:6px;align-items:center}
+.mini-row.one{grid-template-columns:1fr 24px;max-width:220px}
+.mini-row input{min-width:0;border:1px solid var(--input);border-radius:4px;background:var(--card);padding:4px 6px;font-size:12px;font-family:var(--f-num);outline:none}
+.mini-row input:focus{border-color:var(--gold)}
+.mini-row.bad{outline:1px solid var(--crit);background:var(--crit-bg);border-radius:4px}
+.x{color:var(--muted);font-size:16px;line-height:1}
+.x:hover{color:var(--crit)}
+.list-head{font-size:11px;color:var(--muted);font-weight:500}
+textarea{border:1px solid var(--input);border-radius:4px;background:var(--card);padding:6px 10px;font-size:12px;font-family:var(--f-num);outline:none;resize:vertical;width:100%}
+.results{display:flex;flex-direction:column;gap:20px;min-width:0}
+.kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:4px;overflow:hidden}
+@media (min-width:1280px){.kpis{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.kpi{background:var(--card);padding:16px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.eyebrow{font-size:10.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+.kpi .v{font-family:var(--f-display);font-weight:600;font-size:26px;line-height:1.2;font-variant-numeric:lining-nums tabular-nums;overflow-wrap:anywhere}
+.kpi .v.hl{color:var(--gold-ink)}
+.kpi .n{font-size:12px;color:var(--muted)}
+.kpi .n.al{color:var(--crit);font-weight:700}
+.alerts h2{font-size:21px;line-height:1.2}
+.alerts ul{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:8px}
+@media (min-width:768px){.alerts ul{grid-template-columns:1fr 1fr}}
+.alert{display:flex;gap:12px;border:1px solid;border-radius:4px;padding:12px;min-width:0}
+.alert .mk{flex-shrink:0;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--bg)}
+.alert b{display:block;font-size:13px}
+.alert span.t{font-size:12.5px;line-height:1.4}
+.lv-crit{background:var(--crit-bg);border-color:var(--crit-line)}.lv-crit .mk{background:var(--crit)}.lv-crit b{color:var(--crit)}
+.lv-warn{background:var(--warn-bg);border-color:var(--warn-line)}.lv-warn .mk{background:var(--warn)}.lv-warn b{color:var(--warn)}
+.lv-info{background:var(--info-bg);border-color:var(--info-line)}.lv-info .mk{background:var(--info)}.lv-info b{color:var(--info)}
+.lv-ok{background:var(--ok-bg);border-color:var(--ok-line)}.lv-ok .mk{background:var(--ok)}.lv-ok b{color:var(--ok)}
+.alert .det{display:block;margin-top:6px;font-size:12px;line-height:1.45}
+.alert .det em{font-style:normal;font-weight:700}
+.alert ul.av{list-style:disc;margin:2px 0 0;padding-left:16px;display:block}
+.alert ul.av li{font-size:12px;line-height:1.45}
+.readonly .box{background:var(--soft);border-style:dashed}
+.readonly .box input{font-weight:500;color:var(--gold-ink)}
+.counts{display:flex;flex-wrap:wrap;align-items:center;gap:4px 16px}
+.counts span{font-size:12px;font-weight:700}
+.tabs{align-self:flex-start;display:flex;flex-wrap:wrap;gap:4px;background:var(--soft);border-radius:4px;padding:4px}
+.tabs button{border-radius:3px;padding:4px 12px;font-size:13px;font-weight:500;color:var(--muted)}
+.tabs button:hover{color:var(--fg)}
+.tabs button[aria-selected="true"]{background:var(--card);color:var(--fg);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.cards{display:grid;gap:20px}
+@media (min-width:768px){.cards{grid-template-columns:1fr 1fr}}
+.card{border:1px solid var(--line);background:var(--card);border-radius:4px;padding:16px;display:flex;flex-direction:column;min-width:0}
+.card h3{font-size:20px;line-height:1.2;margin-bottom:8px}
+.card dl{margin:0;display:flex;flex-direction:column}
+.dl{display:flex;justify-content:space-between;gap:16px;padding:6px 0;border-bottom:1px solid var(--line)}
+.dl dt{min-width:0}
+.dl dd{margin:0;white-space:nowrap;font-family:var(--f-num);font-variant-numeric:tabular-nums}
+.dl.tot{border-bottom:0;border-top:2px solid var(--gold);margin-top:4px;font-weight:700}
+.dl.sub{color:var(--muted);font-size:12.5px}
+.dl dd.al{color:var(--crit);font-weight:700}
+.dl dd.okc{color:var(--ok);font-weight:700}
+.tbar{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.cap{font-size:12px;color:var(--muted)}
+.tbl{overflow:auto;max-height:70vh;border:1px solid var(--line);border-radius:4px;background:var(--card)}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead th{position:sticky;top:0;background:var(--card);border-bottom:2px solid var(--gold);padding:8px 10px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);white-space:nowrap}
+tbody td{border-top:1px solid var(--line);padding:6px 10px;white-space:nowrap;font-family:var(--f-num);font-variant-numeric:tabular-nums}
+tbody tr:hover{background:var(--soft)}
+td.r{text-align:right}
+tfoot td{position:sticky;bottom:0;background:var(--card);border-top:2px solid var(--gold);padding:8px 10px;font-weight:700;white-space:nowrap;font-family:var(--f-num)}
+.pill{display:inline-block;border-radius:3px;padding:2px 6px;font-size:11px;font-weight:500;white-space:nowrap;font-family:var(--f-body)}
+.p-crit{background:var(--crit-bg);color:var(--crit);box-shadow:inset 0 0 0 1px var(--crit-line)}
+.p-warn{background:var(--warn-bg);color:var(--warn);box-shadow:inset 0 0 0 1px var(--warn-line)}
+.p-info{background:var(--info-bg);color:var(--info);box-shadow:inset 0 0 0 1px var(--info-line)}
+.p-ok{color:var(--ok)}
+.p-mut{color:var(--muted)}
+.prem{border:1px solid var(--line);background:var(--card);border-radius:4px;padding:20px;max-width:80ch;display:flex;flex-direction:column;gap:12px;font-size:13px;line-height:1.6}
+.prem h3{font-size:21px}
+.prem ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px}
+.report{border:1px solid var(--line);background:var(--card);border-radius:4px;padding:20px;overflow-x:auto}
+.report-doc{max-width:100%;font-size:12.5px;line-height:1.5}
+.report-doc h2{font-family:var(--f-display);font-size:22px;margin:0 0 4px}
+.report-doc h4{font-family:var(--f-body);font-size:13px;font-weight:700;margin:16px 0 6px;text-transform:uppercase;letter-spacing:.06em}
+.report-doc table{font-size:11.5px;margin-bottom:4px}
+.report-doc td,.report-doc th{border:1px solid var(--line);padding:3px 6px;white-space:nowrap}
+.report-doc th{background:var(--soft);text-align:left;font-family:var(--f-body);font-size:11px}
+.report-doc ol{padding-left:18px;margin:0}
+.empty{border:1px solid var(--warn-line);background:var(--warn-bg);border-radius:4px;padding:20px}
+.empty h2{font-size:23px;color:var(--warn)}
+.copied{font-size:12px;color:var(--ok);font-weight:700}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header style="display:flex;flex-direction:column;gap:20px">
+    <div class="brand">
+      <div style="display:flex;flex-direction:column;gap:4px">
+        <span class="wordmark">Zibordi<span>·</span>Advocacia</span>
+        <span class="tracked">Bancário · Consumidor · Cível</span>
+      </div>
+      <span class="tracked">Demonstrativo de cálculo</span>
+    </div>
+    <div class="top">
+      <div style="min-width:0">
+        <h1>Calculadora Revisional</h1>
+        <p class="lede">Reconstrói a dívida só com as condições do contrato: parcela, taxas, CET e tabela de amortização (Price ou SAC). Com os pagamentos (data e valor), apura atrasos, encargos e o saldo devedor numa data, e gera a memória de cálculo.</p>
+      </div>
+      <div class="row" id="top-actions"></div>
+    </div>
+  </header>
+  <div class="grid-main">
+    <form class="form" id="form" novalidate></form>
+    <section class="results" id="results" aria-live="polite"></section>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+/* ---------- utilidades ---------- */
+const MS=864e5;
+const toMs=s=>{const[y,m,d]=s.split("-").map(Number);return Date.UTC(y,m-1,d)};
+const iso=ms=>new Date(ms).toISOString().slice(0,10);
+const dias=(a,b)=>Math.round((toMs(b)-toMs(a))/MS);
+const addDias=(s,n)=>iso(toMs(s)+n*MS);
+const r2=x=>Math.round((x+(x>=0?1e-9:-1e-9))*100)/100;
+const hoje=()=>new Date().toISOString().slice(0,10);
+const v=x=>(x??0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
+const pct=(x,c=2)=>(100*x).toLocaleString("pt-BR",{minimumFractionDigits:c,maximumFractionDigits:c})+"%";
+const dbr=s=>s?s.split("-").reverse().join("/"):"";
+const fx=x=>x.toLocaleString("pt-BR",{maximumFractionDigits:6,useGrouping:false});
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const num=s=>{const t=String(s??"").trim().replace(/\s|R\$|%/g,"");if(!t)return null;const n=Number(t.includes(",")?t.replace(/\./g,"").replace(",","."):t);return Number.isFinite(n)?n:null};
+const pdata=s=>{const t=String(s??"").trim();if(/^\d{4}-\d{2}-\d{2}$/.test(t))return t;const m=t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);return m?`${m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`:null};
+function addMeses(s,k){const d=new Date(toMs(s));const y=d.getUTCFullYear(),m=d.getUTCMonth()+k;const ult=new Date(Date.UTC(y,m+1,0)).getUTCDate();return iso(Date.UTC(y,m,Math.min(d.getUTCDate(),ult)))}
+
+/* ---------- feriados bancários nacionais ---------- */
+function pascoa(y){const a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),mes=Math.floor((h+l-7*m+114)/31),dia=((h+l-7*m+114)%31)+1;return iso(Date.UTC(y,mes-1,dia))}
+function feriadosAno(y){
+  const fixos=["01-01","04-21","05-01","09-07","10-12","11-02","11-15","12-25"];if(y>=2024)fixos.push("11-20");
+  const p=pascoa(y);
+  return [...fixos.map(f=>`${y}-${f}`),addDias(p,-48),addDias(p,-47),addDias(p,-2),addDias(p,60)];
+}
+function feriadosNacionais(a,b){const s=new Set();for(let y=+a.slice(0,4);y<=+b.slice(0,4);y++)feriadosAno(y).forEach(d=>s.add(d));return s}
+function diaUtil(d,set){let x=d;for(;;){const w=new Date(toMs(x)).getUTCDay();if(w!==0&&w!==6&&!set.has(x))return x;x=addDias(x,1)}}
+
+/* ---------- cronograma contratual ---------- */
+function cronograma(e){
+  const i=e.taxaMensal,N=e.nParcelas,fin=r2(e.valorFinanciado),f1=dias(e.dataContrato,e.primeiroVenc)/30;
+  const vencs=Array.from({length:N},(_,k)=>addMeses(e.primeiroVenc,k));
+  const out=[];let saldo=fin;
+  if(e.sistema==="PRICE"){
+    const aj=fin*Math.pow(1+i,f1-1);
+    const pmt=e.pmtFixo??r2(i===0?aj/N:aj*i/(1-Math.pow(1+i,-N)));
+    vencs.forEach((venc,k)=>{let j=r2(saldo*(Math.pow(1+i,k===0?f1:1)-1)),val=pmt,am=r2(pmt-j);if(k===N-1){am=saldo;val=r2(am+j)}saldo=r2(saldo-am);out.push({n:k+1,venc,valor:val,juros:j,amort:am,saldo})});
+  }else{
+    const am0=r2(fin/N);
+    vencs.forEach((venc,k)=>{const j=r2(saldo*(Math.pow(1+i,k===0?f1:1)-1)),am=k===N-1?saldo:am0;saldo=r2(saldo-am);out.push({n:k+1,venc,valor:r2(am+j),juros:j,amort:am,saldo})});
+  }
+  return{financiado:fin,f1,parcelas:out};
+}
+
+/* ---------- motor ---------- */
+function calcular(e){
+  const {financiado,f1,parcelas:r}=cronograma(e);
+  const i=e.taxaMensal,CP=e.encargo==="CP",cap=e.capitalizacao;
+  const base=e.dataBase??hoje();
+  const fim=[r[r.length-1].venc,base,...e.pagamentos.map(p=>p.data)].sort().pop();
+  const fer=feriadosNacionais(e.dataContrato,addDias(fim,400));e.feriados.forEach(f=>fer.add(f));
+  const liberado=r2(financiado-e.seguro-e.tarifas);
+  const sem=e.pagamentos.length===0;
+  const fComp=(tx,d)=>cap?Math.pow(1+tx,d/30)-1:tx*d/30;
+  const fRem=d=>CP?fComp(e.cp,d):(e.remAtraso?fComp(i,d):0);
+  const fMora=d=>CP?0:e.mora*d/30;
+  const fMulta=()=>CP?0:e.multa;
+  const acc=(p,d,multa)=>({rem:r2(p*fRem(d)),mora:r2(p*fMora(d)),multa:multa?r2(p*fMulta()):0});
+
+  const venceu=t=>sem&&r[t].venc<=base;
+  const p=r.map((x,t)=>venceu(t)?0:x.valor), atual=r.map(x=>x.valor),
+        pago=r.map((x,t)=>venceu(t)?x.valor:0), encPago=r.map(()=>0), antecip=r.map(()=>0),
+        ultimo=r.map((x,t)=>venceu(t)?x.venc:null), atrasoMax=r.map(()=>0),
+        pend=r.map(()=>({rem:0,mora:0,multa:0})), lastAcc=r.map(x=>x.venc), multaCob=r.map(()=>false);
+  const totPend=t=>pend[t].rem+pend[t].mora+pend[t].multa;
+  const pgs=[];
+
+  for(const pg of [...e.pagamentos].sort((a,b)=>a.data.localeCompare(b.data))){
+    const reg={...pg,aplic:[],posBase:pg.data>base};pgs.push(reg);if(reg.posBase)continue;
+    let u=pg.valor;const s=pg.data;
+    for(let t=0;t<r.length&&u>.004;t++){
+      if(r[t].venc>s)break;
+      if(p[t]<=.004&&totPend(t)<=.004)continue;
+      const atrasado=s>diaUtil(r[t].venc,fer),dA=atrasado?dias(r[t].venc,s):0;
+      const ap={tipo:"parcela",n:t+1,principal:0,rem:0,mora:0,multa:0,desconto:0,diasAtraso:dA};
+      if(e.imputacao==="354"){
+        if(atrasado){const a=acc(p[t],dias(lastAcc[t],s),!multaCob[t]);pend[t].rem=r2(pend[t].rem+a.rem);pend[t].mora=r2(pend[t].mora+a.mora);pend[t].multa=r2(pend[t].multa+a.multa);multaCob[t]=true;lastAcc[t]=s}
+        for(const k of ["rem","mora","multa"]){const x=r2(Math.min(pend[t][k],u));ap[k]=x;pend[t][k]=r2(pend[t][k]-x);u=r2(u-x)}
+        const c=r2(Math.min(p[t],u));ap.principal=c;p[t]=r2(p[t]-c);pago[t]=r2(pago[t]+c);u=r2(u-c);
+      }else{
+        const o=atrasado?{rem:fRem(dA),mora:fMora(dA),multa:fMulta()}:{rem:0,mora:0,multa:0};
+        const tot=1+o.rem+o.mora+o.multa,c=Math.min(p[t],u/tot);
+        ap.principal=r2(c);ap.rem=r2(c*o.rem);ap.mora=r2(c*o.mora);ap.multa=r2(c*o.multa);
+        p[t]=r2(p[t]-c);pago[t]=r2(pago[t]+c);u=r2(u-c*tot);if(p[t]<.01)p[t]=0;
+      }
+      encPago[t]=r2(encPago[t]+ap.rem+ap.mora+ap.multa);ultimo[t]=s;atrasoMax[t]=Math.max(atrasoMax[t],dA);
+      reg.aplic.push(ap);
+    }
+    const prox=r.findIndex((x,t)=>x.venc>s&&p[t]>.004);
+    if(u>.004&&prox>=0){const c=r2(Math.min(p[prox],u));reg.aplic.push({tipo:"parcela",n:prox+1,principal:c,rem:0,mora:0,multa:0,desconto:0,diasAtraso:0});p[prox]=r2(p[prox]-c);pago[prox]=r2(pago[prox]+c);ultimo[prox]=s;u=r2(u-c)}
+    if(u>.004){
+      const fut=r.map((x,t)=>t).filter(t=>r[t].venc>s&&p[t]>.004);
+      const vp=t=>p[t]/Math.pow(1+i,dias(s,r[t].venc)/30);
+      const totVP=fut.reduce((a,t)=>a+vp(t),0);
+      if(totVP<=u+.004){
+        const nom=fut.reduce((a,t)=>a+p[t],0);
+        fut.forEach(t=>{antecip[t]=r2(antecip[t]+p[t]);atual[t]=r2(atual[t]-p[t]);ultimo[t]=s;p[t]=0});
+        reg.aplic.push({tipo:"antecipacao",principal:r2(totVP),rem:0,mora:0,multa:0,desconto:r2(nom-totVP),diasAtraso:0});
+        u=r2(u-totVP);if(u>.004)reg.aplic.push({tipo:"sobra",principal:u,rem:0,mora:0,multa:0,desconto:0,diasAtraso:0});
+      }else if(e.modoAntecipacao==="PARCELA"){
+        const fat=(totVP-u)/totVP;let red=0;
+        fut.forEach(t=>{const novo=r2(p[t]*fat);red+=p[t]-novo;antecip[t]=r2(antecip[t]+p[t]-novo);atual[t]=r2(atual[t]-(p[t]-novo));p[t]=novo;ultimo[t]=s});
+        reg.aplic.push({tipo:"antecipacao",principal:u,rem:0,mora:0,multa:0,desconto:r2(red-u),diasAtraso:0});
+      }else{
+        let red=0,usado=0;
+        for(const t of [...fut].reverse()){
+          if(u-usado<=.004)break;const x=vp(t);
+          if(x<=u-usado+.004){usado+=x;red+=p[t];antecip[t]=r2(antecip[t]+p[t]);atual[t]=r2(atual[t]-p[t]);p[t]=0;ultimo[t]=s}
+          else{const resto=u-usado,nomi=r2(resto*Math.pow(1+i,dias(s,r[t].venc)/30));usado+=resto;red+=nomi;antecip[t]=r2(antecip[t]+nomi);atual[t]=r2(atual[t]-nomi);p[t]=r2(p[t]-nomi);ultimo[t]=s}
+        }
+        reg.aplic.push({tipo:"antecipacao",principal:r2(usado),rem:0,mora:0,multa:0,desconto:r2(red-usado),diasAtraso:0});
+      }
+    }
+  }
+
+  const sit=r.map((x,t)=>{
+    let rem=0,mora=0,multa=0,vp=0;const venc=x.venc<=base,aberto=p[t]>.004||totPend(t)>.004;
+    if(aberto){
+      if(venc){
+        rem=pend[t].rem;mora=pend[t].mora;multa=pend[t].multa;
+        if(base>diaUtil(x.venc,fer)&&p[t]>.004){
+          const a=e.imputacao==="354"?acc(p[t],dias(lastAcc[t],base),!multaCob[t]):acc(p[t],dias(x.venc,base),true);
+          rem=r2(rem+a.rem);mora=r2(mora+a.mora);multa=r2(multa+a.multa);
+        }
+      }else vp=r2(p[t]/Math.pow(1+i,dias(base,x.venc)/30));
+    }
+    const quit=!aberto;
+    const status=(venc||quit)?(quit?(antecip[t]>0&&pago[t]<.01?"Antecipada":atrasoMax[t]>0?"Paga em atraso":"Paga"):(pago[t]>0||encPago[t]>0?"Parcial em aberto":"Em aberto")):(antecip[t]>0?"A vencer (reduzida)":"A vencer");
+    return{n:x.n,venc:x.venc,original:x.valor,atual:atual[t],pagoPrincipal:pago[t],encargosPagos:encPago[t],ultimoPg:ultimo[t],
+      atrasoMax:venc&&!quit?dias(x.venc,base):atrasoMax[t],aberto:p[t],antecipada:antecip[t],encRem:rem,encMora:mora,encMulta:multa,vpBase:vp,status};
+  });
+  const S=f=>r2(sit.reduce((a,x)=>a+f(x),0));
+  const saldo={vincVP:S(x=>x.vpBase),vincNom:S(x=>x.venc>base?x.aberto:0),vencidas:S(x=>x.venc<=base?x.aberto:0),rem:S(x=>x.encRem),mora:S(x=>x.encMora),multa:S(x=>x.encMulta)};
+  saldo.total=r2(saldo.vincVP+saldo.vencidas+saldo.rem+saldo.mora+saldo.multa);
+  saldo.totalNom=r2(saldo.vincNom+saldo.vencidas+saldo.rem+saldo.mora+saldo.multa);
+
+  const P=t=>r.reduce((a,x)=>a+x.valor/Math.pow(1+t,dias(e.dataContrato,x.venc)/30),0);
+  let cetM=null;
+  if(liberado>0){let lo=0,hi=2;for(let k=0;k<200;k++){const m=(lo+hi)/2;P(m)>liberado?lo=m:hi=m}cetM=(lo+hi)/2}
+  const abertas=sit.filter(x=>x.aberto>.004||x.encRem+x.encMora+x.encMulta>.004);
+  const resumoPg=pgs.filter(x=>!x.posBase).reduce((a,x)=>{x.aplic.forEach(y=>{a.rem+=y.rem;a.mora+=y.mora;a.multa+=y.multa;if(y.tipo==="antecipacao")a.antecip+=y.principal;if(y.tipo==="sobra")a.sobra+=y.principal});a.pago+=x.valor;return a},{pago:0,rem:0,mora:0,multa:0,antecip:0,sobra:0});
+  Object.keys(resumoPg).forEach(k=>resumoPg[k]=r2(resumoPg[k]));
+  const anosFer=[...fer].filter(d=>!e.feriados.includes(d));
+  return{financiado,liberado,base,f1,parcelas:r,sit,pgs,saldo,semPagamentos:sem,resumoPg,
+    restante:{qtd:abertas.length,total:r2(abertas.reduce((a,x)=>a+x.aberto,0)),ultima:abertas.length?abertas[abertas.length-1].venc:null},
+    totais:{parcelas:r2(r.reduce((a,x)=>a+x.valor,0)),juros:r2(r.reduce((a,x)=>a+x.juros,0))},
+    taxas:{mensal:i,anualEf:Math.pow(1+i,12)-1,nominal:12*i,cetM,cetA:cetM==null?null:Math.pow(1+cetM,12)-1},
+    nFeriados:anosFer.length};
+}
+
+/* ---------- alertas ---------- */
+/* cada alerta: {n: nível, ti: título, tx: texto, ind: indício com normas, fund: fundamento, av: [a averiguar]} */
+function alertas(e,t){
+  const a=[],CP=e.encargo==="CP",br=dbr(t.base);
+  if(!CP&&e.multa>.02)a.push({n:"crit",ti:"Multa acima de 2%",tx:`A cláusula prevê ${pct(e.multa)}. O cálculo aplica a taxa pactuada.`,
+    ind:"Indício de multa moratória acima do limite legal (art. 52, § 1º, CDC, na redação da Lei 9.298/1996; fora da relação de consumo, art. 9º do Decreto 22.626/1933 limita a 10%).",
+    av:["se há relação de consumo (arts. 2º e 3º, § 2º, CDC; Súmula 297/STJ)","base de cálculo da multa: só a parcela vencida, nunca o saldo devedor total"]});
+  if(!CP&&e.mora>.01)a.push({n:"crit",ti:"Juros de mora acima de 1% a.m.",tx:`A cláusula prevê ${pct(e.mora)} a.m. O cálculo aplica a taxa pactuada.`,
+    ind:"Indício de juros moratórios acima do limite (Súmula 379/STJ).",
+    av:["se a taxa vem rotulada de outra forma (ex.: “juros de mora diários”, “encargos de inadimplência”)","cumulação com comissão de permanência (Súmula 472/STJ)"]});
+  if(CP){
+    const teto=e.taxaMensal+e.mora;
+    if(e.cp>teto+5e-5)a.push({n:"crit",ti:"Comissão de permanência acima do teto",tx:`${pct(e.cp)} a.m. supera a soma dos juros remuneratórios (${pct(e.taxaMensal)}) e de mora (${pct(e.mora)}) do contrato. O cálculo aplica a taxa pactuada.`,
+      ind:"Indício de comissão de permanência acima do teto (Súmula 472/STJ; REsp 1.058.114/RS, repetitivo).",
+      av:["cumulação com correção monetária (Súmula 30/STJ), juros remuneratórios, mora ou multa (Súmula 472/STJ)","taxa da comissão frente à taxa média de mercado, limitada à do contrato (Súmula 294/STJ)"]});
+    a.push({n:"info",ti:"Comissão de permanência sem cumulação",tx:`No atraso, aplica-se só a comissão de ${pct(e.cp)} a.m., sem juros remuneratórios, mora e multa.`,
+      fund:"Súmula 472/STJ.",av:["se os extratos ou a planilha do banco cobram outros encargos junto com a comissão"]});
+  }
+  if(!e.capitalizacao&&e.sistema==="PRICE")a.push({n:"warn",ti:"Price sem capitalização pactuada",tx:"A fase de normalidade segue a Tabela Price contratada; os encargos do atraso foram calculados com juros simples.",
+    ind:"Indício de capitalização não pactuada (Súmulas 539 e 541/STJ; art. 5º da MP 2.170-36/2001).",
+    av:["cláusula expressa de capitalização ou taxa anual superior a 12 vezes a mensal no contrato","data do contrato (capitalização mensal só a partir de 31/03/2000)"]});
+  const venc=t.sit.filter(x=>x.venc<=t.base&&(x.aberto>.004||x.encRem+x.encMora+x.encMulta>.004));
+  if(venc.length)a.push({n:"crit",ti:`${venc.length} parcela(s) vencida(s) em aberto`,tx:`Parcelas ${venc.map(x=>x.n).join(", ")}: R$ ${v(t.saldo.vencidas)} de principal, mais R$ ${v(t.saldo.rem+t.saldo.mora+t.saldo.multa)} de encargos até ${br}.`,
+    fund:"Mora no vencimento (art. 397 do Código Civil). Só a abusividade nos encargos da normalidade descaracteriza a mora (REsp 1.061.530/RS, repetitivo).",
+    av:["comprovantes de pagamento não lançados","débitos automáticos em conta não informados","vencimento antecipado da dívida, se declarado pelo banco"]});
+  if(e.seguro>0)a.push({n:"warn",ti:"Seguro financiado",tx:`R$ ${v(e.seguro)} (${pct(e.seguro/t.financiado)} do valor financiado) sofrem juros por todo o prazo.`,
+    ind:"Indício de venda casada (art. 39, I, CDC; Tema 972/STJ, REsp 1.639.320/SP).",
+    av:["proposta ou apólice assinada em instrumento separado","possibilidade de escolha da seguradora","seguradora do mesmo grupo econômico do banco","juros cobrados sobre o prêmio financiado (restituição com reflexos)"]});
+  if(e.tarifas>0)a.push({n:"warn",ti:"Tarifas financiadas",tx:`R$ ${v(e.tarifas)} de tarifas sofrem juros por todo o prazo.`,
+    ind:"Indício de tarifa sem fato gerador ou vedada (Res. CMN 3.919/2010; Temas 618 a 620/STJ; Tema 958/STJ).",
+    av:["natureza de cada tarifa no contrato","TAC ou TEC em contrato posterior a 30/04/2008","tarifa de cadastro fora do início do relacionamento","comprovação do serviço de avaliação do bem ou registro do contrato"]});
+  const at=t.pgs.flatMap(x=>x.aplic).filter(x=>x.diasAtraso>0);
+  if(at.length)a.push({n:"warn",ti:`${at.length} quitação(ões) em atraso`,tx:CP?`Comissão de permanência embutida nos pagamentos: R$ ${v(t.resumoPg.rem)}.`:`Encargos embutidos nos pagamentos: R$ ${v(t.resumoPg.rem)} de juros remuneratórios, R$ ${v(t.resumoPg.mora)} de mora e R$ ${v(t.resumoPg.multa)} de multa.`,
+    fund:"Cláusula de inadimplência do contrato; imputação conforme a opção escolhida (art. 354 do Código Civil ou proporcional).",
+    av:["se os encargos cobrados pelo banco nos extratos coincidem com os calculados"]});
+  const pos=t.pgs.filter(x=>x.posBase);
+  if(pos.length)a.push({n:"warn",ti:"Pagamentos depois da data de apuração",tx:`${pos.length} pagamento(s) após ${br} não entram no saldo. Mude a data de apuração para considerá-los.`});
+  if(t.resumoPg.sobra>0)a.push({n:"warn",ti:"Pagamento acima do saldo",tx:`R$ ${v(t.resumoPg.sobra)} excedem o necessário para quitar o contrato.`,
+    ind:"Indício de pagamento indevido (art. 876 do Código Civil; art. 42, parágrafo único, CDC).",
+    av:["se o excedente foi devolvido ou compensado","se há encargos cobrados pelo banco fora do contrato"]});
+  if(t.semPagamentos)a.push({n:"info",ti:"Sem pagamentos informados",tx:`As parcelas vencidas até ${br} foram consideradas pagas em dia. Informe os pagamentos para apurar atrasos.`});
+  if(t.resumoPg.antecip>0)a.push({n:"info",ti:"Amortização extraordinária",tx:`R$ ${v(t.resumoPg.antecip)} anteciparam parcelas futuras com desconto à taxa do contrato, ${e.modoAntecipacao==="PRAZO"?"quitando as últimas parcelas":"reduzindo o valor das parcelas"}.`,
+    fund:"Art. 52, § 2º, CDC; Res. CMN 3.516/2007.",
+    av:["se o banco concedeu a redução proporcional dos juros (extratos ou termo de quitação)","se houve cobrança de tarifa de liquidação antecipada"]});
+  if(t.taxas.cetM!=null&&t.taxas.cetM-e.taxaMensal>5e-5){const o=[e.seguro>0&&"do seguro",e.tarifas>0&&"das tarifas"].filter(Boolean);
+    a.push({n:"info",ti:"CET acima da taxa de juros",tx:`CET de ${pct(t.taxas.cetM)} a.m. contra taxa de ${pct(e.taxaMensal)} a.m. A diferença vem ${o.join(" e ")} financiado(s).`,
+      fund:"O CET deve constar do contrato e incluir todos os encargos e despesas (Res. CMN 4.881/2020).",
+      av:["CET informado no contrato","IOF financiado, que este cálculo não inclui"]});}
+  if(!venc.length&&!t.semPagamentos&&t.sit.some(x=>x.venc<=t.base))a.push({n:"ok",ti:"Nenhuma parcela vencida em aberto",tx:`Os pagamentos informados quitam todas as parcelas vencidas até ${br}.`});
+  if(!CP&&e.multa<=.02&&e.mora<=.01)a.push({n:"ok",ti:"Multa e mora dentro dos limites",tx:`Multa de ${pct(e.multa)} e mora de ${pct(e.mora)} a.m.`,fund:"Art. 52, § 1º, CDC; Súmula 379/STJ."});
+  const ord=["crit","warn","info","ok"];return a.sort((x,y)=>ord.indexOf(x.n)-ord.indexOf(y.n));
+}
+function alertaHtml(x){
+  return `<li class="alert lv-${x.n}"><span class="mk" aria-hidden="true">${MARCA[x.n][1]}</span><div style="min-width:0"><b><span class="sr">${MARCA[x.n][0]}: </span>${x.ti}</b><span class="t">${x.tx}</span>`+
+    (x.ind?`<span class="det"><em>${x.ind}</em></span>`:"")+(x.fund?`<span class="det"><em>Fundamento:</em> ${x.fund}</span>`:"")+
+    (x.av&&x.av.length?`<span class="det"><em>Averiguar:</em></span><ul class="av">${x.av.map(y=>`<li>${y}</li>`).join("")}</ul>`:"")+`</div></li>`;
+}
+
+/* ---------- premissas ---------- */
+function premissas(e,t){
+  const CP=e.encargo==="CP",forma=e.capitalizacao?"compostos, fator (1 + i)^(dias ÷ 30)":"simples, i × dias ÷ 30";
+  const l=[];
+  l.push(["Fonte","Cálculo feito só com as condições do contrato e os pagamentos informados. Não reproduz o sistema de nenhum banco."]);
+  l.push(["Sistema de amortização",e.sistema==="PRICE"?"Tabela Price: parcelas iguais; juros sobre o saldo devedor; a última parcela absorve a diferença de arredondamento.":"SAC: amortização constante; juros sobre o saldo devedor."]);
+  l.push(["Valor calculado",e.solver.premissa]);
+  l.push(["Contagem do tempo",`Dias corridos entre as datas; mês de 30 dias. Na fase de normalidade, frações de mês em juros compostos. 1º período de juros: ${t.f1.toLocaleString("pt-BR",{maximumFractionDigits:2})} mês(es).`]);
+  l.push(["Arredondamento","Valores arredondados ao centavo em cada lançamento (juros, amortização, saldo e encargos)."]);
+  l.push(["Capitalização",e.capitalizacao?"O contrato prevê capitalização de juros: encargos remuneratórios do atraso em juros compostos.":"O contrato não prevê capitalização de juros: encargos remuneratórios do atraso em juros simples."]);
+  l.push(["Encargos do atraso",CP?`Comissão de permanência de ${pct(e.cp)} a.m., ${forma}, sobre o principal em aberto da parcela, sem juros remuneratórios, mora e multa (Súmula 472/STJ).`
+    :`Multa de ${pct(e.multa)}, cobrada uma vez sobre o valor em aberto da parcela; juros de mora de ${pct(e.mora)} a.m., simples (taxa × dias ÷ 30)${e.remAtraso?`; juros remuneratórios de ${pct(e.taxaMensal)} a.m., ${forma}`:"; sem juros remuneratórios no atraso"}. Base: principal da parcela em aberto. Encargos não pagos não rendem juros.`]);
+  l.push(["Dia útil",`Vencimento em sábado, domingo ou feriado bancário pago no dia útil seguinte não gera encargos. Incluídos os feriados nacionais (1º/1, Carnaval segunda e terça, Sexta-feira Santa, 21/4, 1º/5, Corpus Christi, 7/9, 12/10, 2/11, 15/11, 20/11 a partir de 2024, 25/12)${e.feriados.length?` e ${e.feriados.length} feriado(s) local(is) informado(s)`:""}.`]);
+  l.push(["Imputação dos pagamentos",(e.imputacao==="354"?"Art. 354 do Código Civil: cada pagamento quita primeiro os encargos vencidos da parcela (juros remuneratórios ou comissão, mora e multa) e depois o capital. Os encargos ficam quitados até a data do pagamento; o capital remanescente volta a gerar encargos a partir dela."
+    :"Proporcional: cada pagamento quita principal e encargos da parcela na mesma proporção; o principal remanescente continua gerando encargos desde o vencimento.")
+    +` Ordem: parcela vencida mais antiga; depois a próxima parcela a vencer, pelo valor nominal; o excedente é amortização extraordinária com desconto à taxa do contrato (art. 52, § 2º, CDC; Res. CMN 3.516/2007), ${e.modoAntecipacao==="PRAZO"?"quitando as últimas parcelas (reduz o prazo)":"reduzindo o valor das parcelas"}.`]);
+  l.push(["Saldo devedor",e.dataBase?`Em ${dbr(e.dataBase)}: parcelas vencidas em aberto com encargos até a data, mais parcelas a vencer, apresentadas a valor presente (desconto à taxa do contrato) e pelo valor nominal.`:"Sem data de apuração: a calculadora mostra as parcelas restantes até a quitação, tomando hoje como referência."]);
+  l.push(["CET","Taxa que iguala o valor liberado (financiado − seguro − tarifas) ao fluxo das parcelas nas datas de vencimento, em base mensal de 30 dias, anualizada de forma composta. O banco calcula em base anual de 365 dias (Res. CMN 4.881/2020); pode haver diferença nas casas decimais. IOF não incluído."]);
+  if(t.semPagamentos)l.push(["Sem pagamentos","Sem pagamentos informados, as parcelas vencidas até a data-base foram tidas como pagas em dia."]);
+  l.push(["Não incluído","IOF complementar de atraso e correção monetária."]);
+  return l;
+}
+
+/* ---------- estado ---------- */
+const KEY="calc-contratual-v5",OLDS=["calc-contratual-v4","calc-contratual-v3"];
+const VAZIO=()=>({sistema:"PRICE",calc:"PARCELA",dataContrato:"",primeiroVenc:"",nParcelas:"",taxa:"",parcela:"",valorFinanciado:"",seguro:"0,00",tarifas:"0,00",encargo:"PADRAO",multa:"2",mora:"1",cp:"",remAtraso:true,cap:true,imput:"354",feriados:[],modo:"PRAZO",apurar:false,dataBase:hoje(),pagamentos:[]});
+const clone=o=>JSON.parse(JSON.stringify(o));
+let F,exemplo,mostrarErros=true,confirmar=false,colar=false,aba="resumo",colarTxt="";
+(function carregar(){
+  for(const k of [KEY,...OLDS]){
+    try{const s=JSON.parse(localStorage.getItem(k)||"null");if(s&&s.form){
+      if(s.exemplo)break;
+      F={...VAZIO(),...s.form};if(!s.form.parcela)F.parcela=s.form.parcelaContrato||"";if(!["PARCELA","TAXA","N","VF"].includes(F.calc))F.calc="PARCELA";return}}catch{}
+  }
+  F=VAZIO();exemplo=false;
+})();
+const salvar=()=>{try{localStorage.setItem(KEY,JSON.stringify({form:F,exemplo}))}catch{}};
+
+/* ---------- quatro valores: informa três, calcula o quarto ---------- */
+const CAMPO={PARCELA:"parcela",TAXA:"taxa",N:"nParcelas",VF:"valorFinanciado"};
+const NOME={PARCELA:"Parcela",TAXA:"Taxa de juros",N:"Nº de parcelas",VF:"Valor financiado"};
+function entrada(){
+  const er={},dc=pdata(F.dataContrato),pv=pdata(F.primeiroVenc),db=pdata(F.dataBase);
+  const calc=F.sistema==="PRICE"?F.calc:"PARCELA";
+  if(!dc)er.dataContrato="Informe a data";
+  if(!pv)er.primeiroVenc="Informe a data";else if(dc&&pv<=dc)er.primeiroVenc="Deve ser posterior ao contrato";
+  if(F.apurar&&!db)er.dataBase="Informe a data";
+  let n=null,tx=null,vf=null,pc=null;
+  if(calc!=="N"){n=parseInt(F.nParcelas,10);if(!(n>0&&n<=600))er.nParcelas="Entre 1 e 600"}
+  if(calc!=="TAXA"){tx=num(F.taxa);if(tx==null||tx<0||tx>30)er.taxa="Taxa mensal inválida"}
+  if(calc!=="VF"){vf=num(F.valorFinanciado);if(vf==null||vf<=0)er.valorFinanciado="Informe o valor"}
+  if(calc!=="PARCELA"){pc=num(F.parcela);if(pc==null||pc<=0)er.parcela="Informe a parcela"}
+  const nn=(k)=>{const x=num(F[k]);if(x!=null&&x<0)er[k]="Não pode ser negativo";return x??0};
+  const sg=nn("seguro"),tar=nn("tarifas"),mu=nn("multa"),mo=nn("mora");
+  let cp=null;if(F.encargo==="CP"){cp=num(F.cp);if(cp==null||cp<0||cp>30)er.cp="Informe a taxa da comissão"}
+  const pgs=[];F.pagamentos.forEach((p,k)=>{if(!p.data&&!p.valor)return;const d=pdata(p.data),x=num(p.valor);if(!d||x==null||x<=0){er["pg"+k]="Data ou valor inválido";return}pgs.push({data:d,valor:x})});
+  let i=tx!=null?tx/100:null,solver=null;
+  if(!Object.keys(er).length){
+    const f1=dias(dc,pv)/30,ajf=x=>Math.pow(1+x,f1-1),fat=(x,N)=>x===0?1/N:x/(1-Math.pow(1+x,-N));
+    const base1=f1.toLocaleString("pt-BR",{maximumFractionDigits:2});
+    const cidadao=Math.abs(f1-1)>.001?` O 1º período tem ${base1} meses; a Calculadora do Cidadão (Banco Central) considera 1º vencimento em 30 dias, por isso os resultados podem divergir.`:"";
+    if(calc==="VF"){vf=r2(pc/fat(i,n)/ajf(i));solver={k:"valorFinanciado",valor:v(vf),desc:`Valor financiado: R$ ${v(vf)}`,premissa:`Valor financiado calculado (R$ ${v(vf)}) a partir do prazo, da taxa e da parcela informados, pela fórmula da Tabela Price.${cidadao}`}}
+    else if(calc==="TAXA"){
+      const g=x=>vf*ajf(x)*fat(x,n);
+      if(pc<=g(0)+.005)er.parcela="Parcela não cobre o valor financiado";else if(pc>g(.3))er.parcela="Resulta em taxa acima de 30% a.m.";
+      else{let lo=0,hi=.3;for(let k=0;k<200;k++){const m=(lo+hi)/2;g(m)<pc?lo=m:hi=m}i=(lo+hi)/2;
+        const t6=(100*i).toLocaleString("pt-BR",{minimumFractionDigits:4,maximumFractionDigits:6});
+        solver={k:"taxa",valor:t6,desc:`Taxa de juros: ${t6}% a.m.`,premissa:`Taxa de juros calculada (${t6}% a.m.) a partir do valor financiado, do prazo e da parcela informados, pela fórmula da Tabela Price.${cidadao}`}}
+    }else if(calc==="N"){
+      const vfa=vf*ajf(i);let nr;
+      if(i===0)nr=vfa/pc;else if(pc<=vfa*i+.005){er.parcela="Parcela não cobre os juros do período"}else nr=-Math.log(1-vfa*i/pc)/Math.log(1+i);
+      if(nr!=null){n=Math.round(nr);
+        if(n<1||n>600)er.parcela="Resulta em prazo fora de 1 a 600 parcelas";
+        else{const frac=Math.abs(nr-n)>.01?` O cálculo exato dá ${nr.toLocaleString("pt-BR",{maximumFractionDigits:2})} parcelas; arredondado para ${n}, com a última parcela ajustando a diferença.`:"";
+          solver={k:"nParcelas",valor:String(n),desc:`Nº de parcelas: ${n}`,premissa:`Nº de parcelas calculado (${n}) a partir do valor financiado, da taxa e da parcela informados, pela fórmula da Tabela Price.${frac}${cidadao}`}}}
+    }else solver={k:"parcela",valor:null,desc:"Parcela",premissa:F.sistema==="PRICE"?`Parcela calculada a partir do valor financiado, do prazo e da taxa informados, pela fórmula da Tabela Price.${cidadao}`:"Parcelas calculadas pelo SAC a partir do valor financiado, do prazo e da taxa informados."};
+    if(vf!=null&&sg+tar>=vf)er.seguro="Seguro e tarifas somam mais que o financiado";
+  }
+  if(Object.keys(er).length)return{er,e:null};
+  return{er,e:{sistema:F.sistema,calc,solver,dataContrato:dc,primeiroVenc:pv,nParcelas:n,taxaMensal:i,pmtFixo:calc==="PARCELA"?null:pc,valorFinanciado:vf,seguro:sg,tarifas:tar,
+    encargo:F.encargo,multa:mu/100,mora:mo/100,cp:cp!=null?cp/100:0,remAtraso:F.remAtraso,capitalizacao:F.cap,imputacao:F.imput,
+    feriados:F.feriados.map(pdata).filter(Boolean),modoAntecipacao:F.modo,dataBase:F.apurar?db:null,pagamentos:pgs}};
+}
+
+/* ---------- formulário ---------- */
+const $=id=>document.getElementById(id);
+function campo(k,label,{suf,type,hint,ro,req}={}){
+  const h=ro?"Calculado":(hint||"");
+  return `<label class="field${ro?" readonly":""}" id="f-${k}" for="i-${k}"><span class="lbl">${label}${req&&!ro?'<span class="req" aria-hidden="true">*</span>':""}</span><span class="box"><input id="i-${k}" ${ro?"readonly tabindex=\"-1\"":`data-k="${k}"${req?" required aria-required=\"true\"":""}`} ${type?`type="${type}"`:'inputmode="decimal"'} value="${esc(F[k])}">${suf?`<span class="suf">${suf}</span>`:""}</span><span class="hint" id="h-${k}" data-hint="${esc(h)}">${esc(h)}</span></label>`;
+}
+function seg(k,label,ops,hint){
+  return `<div class="field" role="radiogroup" aria-labelledby="l-${k}"><span class="lbl" id="l-${k}">${label}</span><div class="seg" data-seg="${k}">${ops.map(([val,t])=>`<button type="button" role="radio" aria-checked="${F[k]===val}" data-v="${val}">${t}</button>`).join("")}</div>${hint?`<span class="hint">${hint}</span>`:""}</div>`;
+}
+function renderForm(){
+  const cp=F.encargo==="CP",price=F.sistema==="PRICE",calc=price?F.calc:"PARCELA",ro=c=>({ro:calc===c,req:true});
+  $("form").innerHTML=`
+  <fieldset><legend>Contrato</legend>
+    <p class="hint"><span class="req" aria-hidden="true">*</span> Campo obrigatório</p>
+    ${seg("sistema","Sistema de amortização",[["PRICE","Price"],["SAC","SAC"]])}
+    ${price?seg("calc","Valor a calcular",[["PARCELA","Parcela"],["TAXA","Taxa"],["N","Prazo"],["VF","Financiado"]],"Informe os outros três; o marcado é calculado."):""}
+    <div class="g2">${campo("dataContrato","Data do contrato",{type:"date",req:true})}${campo("primeiroVenc","1º vencimento",{type:"date",req:true})}
+    ${campo("valorFinanciado","Valor financiado",{suf:"R$",...ro("VF")})}${campo("nParcelas","Nº de parcelas",ro("N"))}
+    ${campo("taxa","Taxa de juros",{suf:"% a.m.",...ro("TAXA")})}${campo("parcela",price?"Parcela":"1ª parcela",{suf:"R$",...ro("PARCELA")})}
+    ${campo("seguro","Seguro financiado",{suf:"R$"})}${campo("tarifas","Tarifas financiadas",{suf:"R$"})}</div>
+    <p class="hint" id="liberado"></p>
+    <label class="check" for="i-cap"><input id="i-cap" type="checkbox" ${F.cap?"checked":""}><span>O contrato prevê capitalização de juros</span></label>
+    ${seg("encargo","Encargos do atraso",[["PADRAO","Juros, mora e multa"],["CP","Comissão de permanência"]])}
+    <div id="cp-box" ${cp?"":"hidden"}>${campo("cp","Comissão de permanência",{suf:"% a.m.",req:true})}</div>
+    <div class="g2">${campo("multa","Multa",{suf:"%"})}${campo("mora","Juros de mora",{suf:"% a.m."})}</div>
+    <p class="hint" id="cp-hint" ${cp?"":"hidden"}>Com comissão de permanência, multa e mora servem só para conferir o teto da Súmula 472/STJ.</p>
+    <label class="check" for="i-rem" id="rem-box" ${cp?"hidden":""}><input id="i-rem" type="checkbox" ${F.remAtraso?"checked":""}><span>Juros remuneratórios também no período de atraso</span></label>
+    <div class="field"><span class="lbl">Feriados locais</span>
+      <div id="fe-list" style="display:flex;flex-direction:column;gap:6px"></div>
+      <button type="button" class="btn-sm" id="fe-add" style="align-self:flex-start">Adicionar feriado local</button>
+      <span class="hint">Fins de semana e feriados bancários nacionais já estão incluídos. Pagamento no dia útil seguinte não gera encargos.</span></div>
+  </fieldset>
+  <fieldset><legend id="pg-legend">Pagamentos</legend>
+    ${seg("imput","Pagamento de parcela vencida",[["354","Encargos primeiro (art. 354 CC)"],["PROP","Proporcional"]],"Como o valor se divide entre encargos e capital da parcela em atraso.")}
+    ${seg("modo","Valor pago além das parcelas vencidas",[["PRAZO","Reduz o prazo"],["PARCELA","Reduz a parcela"]],"Antecipa parcelas futuras com desconto à taxa do contrato.")}
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <div class="mini-row list-head"><span>Data</span><span>Valor (R$)</span><span></span></div>
+      <div id="pg-list" style="display:flex;flex-direction:column;gap:6px"></div>
+    </div>
+    <div class="row"><button type="button" class="btn-sm" id="pg-add">Adicionar pagamento</button><button type="button" class="btn-sm" id="pg-colar">Colar do Excel</button></div>
+    <div id="colar-box" style="display:flex;flex-direction:column;gap:8px" ${colar?"":"hidden"}>
+      <textarea id="i-colar" rows="4" placeholder="10/01/2025&#9;1.500,00&#10;10/02/2025&#9;1.500,00">${esc(colarTxt)}</textarea>
+      <span class="hint">Duas colunas: data e valor. Linhas sem data válida são ignoradas.</span>
+      <button type="button" class="btn-pri" id="colar-ok" style="align-self:flex-start;font-size:12px;padding:4px 10px">Incluir linhas</button>
+    </div>
+  </fieldset>
+  <fieldset><legend>Apuração do saldo devedor</legend><div id="apur"></div></fieldset>`;
+  renderFeriados();renderPgs();renderApur();
+}
+function renderFeriados(){
+  $("fe-list").innerHTML=F.feriados.map((f,k)=>`<div class="mini-row one"><input type="date" id="fe-${k}" data-fe="${k}" aria-label="Feriado ${k+1}" value="${esc(f)}"><button type="button" class="x" data-fe-del="${k}" aria-label="Remover feriado ${k+1}">×</button></div>`).join("");
+}
+function renderPgs(){
+  $("pg-list").innerHTML=F.pagamentos.map((p,k)=>`<div class="mini-row" id="pgr-${k}"><input type="date" id="pg-d-${k}" data-pg="${k}" data-f="data" aria-label="Data do pagamento ${k+1}" value="${esc(p.data)}"><input id="pg-v-${k}" inputmode="decimal" data-pg="${k}" data-f="valor" aria-label="Valor do pagamento ${k+1}" value="${esc(p.valor)}" style="text-align:right"><button type="button" class="x" data-pg-del="${k}" aria-label="Remover pagamento ${k+1}">×</button></div><span class="errmsg" id="pge-${k}" hidden></span>`).join("");
+  $("pg-legend").textContent=`Pagamentos (${F.pagamentos.filter(p=>p.data||p.valor).length})`;
+}
+function renderApur(){
+  $("apur").innerHTML=F.apurar?`<div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end">${campo("dataBase","Saldo devedor em",{type:"date",req:true})}<button type="button" class="btn-sm" id="apur-off" style="margin-bottom:22px">Remover</button></div>`
+    :`<div style="display:flex;flex-direction:column;gap:4px"><button type="button" class="btn-sm" id="apur-on" style="align-self:flex-start">Apurar saldo devedor em uma data</button><span class="hint">Sem data, a calculadora reconstrói as parcelas restantes até a quitação.</span></div>`;
+}
+function renderTop(){
+  $("top-actions").innerHTML=(confirmar
+    ?`<span class="confirm">Apagar os dados atuais?<button type="button" class="del" id="b-del">Apagar</button><button type="button" id="b-cancel">Cancelar</button></span>`
+    :`<button type="button" class="btn-pri" id="b-novo">Novo contrato</button>`);
+  
+}
+function marcarErros(er){
+  document.querySelectorAll(".field[id^='f-']").forEach(el=>{
+    const k=el.id.slice(2),h=$("h-"+k),m=mostrarErros&&er[k];el.classList.toggle("err",!!m);
+    if(h){h.textContent=m||h.dataset.hint;h.className=m?"errmsg":"hint"}
+  });
+  F.pagamentos.forEach((p,k)=>{const m=er["pg"+k]&&(p.data||p.valor);const row=$("pgr-"+k),s=$("pge-"+k);if(row)row.classList.toggle("bad",!!m);if(s){s.hidden=!m;s.textContent=m||""}});
+}
+
+/* ---------- resultados ---------- */
+const STATUS={"Em aberto":"p-crit","Parcial em aberto":"p-crit","Paga em atraso":"p-warn","Antecipada":"p-info","A vencer (reduzida)":"p-info","Paga":"p-ok","A vencer":"p-mut"};
+const MARCA={crit:["Crítico","!"],warn:["Atenção","▲"],ok:["Conferido","✓"],info:["Informação","i"]};
+function tabela(cab,linhas,rod){
+  const td=(c,j)=>`<td${j>=2&&typeof c==="string"&&/^-?[\d.]+,\d{2}$|^\d+$/.test(c)?' class="r"':""}>${c}</td>`;
+  return `<div class="tbl"><table><thead><tr>${cab.map(c=>`<th>${c}</th>`).join("")}</tr></thead><tbody>${linhas.map(l=>`<tr>${l.map(td).join("")}</tr>`).join("")}</tbody>${rod?`<tfoot><tr>${rod.map((c,j)=>`<td${j>=2?' style="text-align:right"':""}>${c}</td>`).join("")}</tr></tfoot>`:""}</table></div>`;
+}
+const dl=(l,val,o={})=>`<div class="dl${o.tot?" tot":""}${o.sub?" sub":""}"><dt>${l}</dt><dd class="${o.al?"al":""}${o.ok?"okc":""}">${o.t??("R$ "+v(val))}</dd></div>`;
+const kpi=(rot,val,nota,o={})=>`<div class="kpi"><span class="eyebrow">${rot}</span><span class="v${o.hl?" hl":""}">${val}</span><span class="n${o.al?" al":""}">${nota}</span></div>`;
+
+let ultimo=null;
+function render(){
+  const {er,e}=entrada();marcarErros(er);salvar();
+  const R=$("results");
+  if(!e){ultimo=null;const k=CAMPO[F.sistema==="PRICE"?F.calc:"PARCELA"],ri=$("i-"+k);if(ri)ri.value="";R.innerHTML=`<div class="empty" role="status"><h2>Faltam dados para calcular</h2><p style="margin-top:4px">Obrigatórios: data do contrato, 1º vencimento, nº de parcelas, taxa mensal e valor financiado.</p></div>`;$("liberado").textContent="";return}
+  const t=calcular(e);ultimo={e,t};
+  const sv=e.solver.k==="parcela"?v(t.parcelas[0].valor):e.solver.valor;F[e.solver.k]=sv;const ri=$("i-"+e.solver.k);if(ri)ri.value=sv;salvar();
+  $("liberado").innerHTML=`Valor liberado (financiado − seguro − tarifas): <span class="num" style="color:var(--fg)">R$ ${v(t.liberado)}</span>`;
+  const CP=e.encargo==="CP",encL=CP?"Comissão de permanência":"Juros remuneratórios do atraso";
+  const al=alertas(e,t),cnt=n=>al.filter(a=>a.n===n).length;
+  const k=[kpi(e.sistema==="PRICE"?"Parcela":"1ª parcela (SAC)",`R$ ${v(t.parcelas[0].valor)}`,e.sistema==="PRICE"?`${e.nParcelas} × · total R$ ${v(t.totais.parcelas)}`:`última R$ ${v(t.parcelas[t.parcelas.length-1].valor)} · total R$ ${v(t.totais.parcelas)}`),
+    kpi("Taxa efetiva",`${pct(t.taxas.anualEf)} a.a.`,`${pct(t.taxas.mensal)} a.m. · nominal ${pct(t.taxas.nominal)} a.a.`),
+    kpi("CET",t.taxas.cetM==null?"–":`${pct(t.taxas.cetM)} a.m.`,t.taxas.cetA==null?"valor liberado inválido":`${pct(t.taxas.cetA)} a.a. sobre R$ ${v(t.liberado)} liberados`),
+    e.dataBase?kpi(`Saldo devedor em ${dbr(e.dataBase)}`,`R$ ${v(t.saldo.total)}`,`a valor presente · nominal R$ ${v(t.saldo.totalNom)}`+(t.saldo.vencidas>0?` · R$ ${v(t.saldo.vencidas)} vencidos`:""),{hl:1,al:t.saldo.vencidas>0})
+      :kpi("Até a quitação",t.restante.qtd?`${t.restante.qtd} parcela(s)`:"Quitado",t.restante.qtd?`R$ ${v(t.restante.total)} nominais · última em ${dbr(t.restante.ultima)}`:"nenhuma parcela em aberto",{hl:1,al:t.saldo.vencidas>0})].join("");
+  const tabs=[["resumo","Resumo"],["tabela","Tabela de amortização"],["situacao","Situação das parcelas"],["pagamentos","Pagamentos"],["premissas","Premissas do cálculo"],["relatorio","Relatório"]];
+  const pagosTot=r2(t.pgs.filter(x=>!x.posBase).reduce((a,x)=>a+x.valor,0));
+  R.innerHTML=`
+  <div class="kpis">${k}</div>
+  ${al.length?`<section class="alerts" aria-label="Alertas"><div class="counts"><h2>Alertas</h2>${["crit","warn","info","ok"].filter(cnt).map(n=>`<span style="color:var(--${n})">${cnt(n)} ${MARCA[n][0].toLowerCase()}</span>`).join("")}</div>
+    <ul>${al.map(alertaHtml).join("")}</ul></section>`:""}
+  <div style="display:flex;flex-direction:column;gap:12px">
+    <div class="tabs" role="tablist">${tabs.map(([id,l])=>`<button type="button" role="tab" id="tab-${id}" aria-selected="${aba===id}" data-tab="${id}">${l}</button>`).join("")}</div>
+    <div ${aba==="resumo"?"":"hidden"}><div class="cards">
+      ${e.dataBase?`<div class="card"><h3>Saldo devedor em ${dbr(e.dataBase)}</h3><dl>
+        ${dl("Parcelas vencidas em aberto",t.saldo.vencidas,{al:t.saldo.vencidas>0})}
+        ${CP?dl("Comissão de permanência",t.saldo.rem):`${e.remAtraso?dl("Juros remuneratórios do atraso",t.saldo.rem):""}${dl("Juros de mora",t.saldo.mora)}${dl("Multa",t.saldo.multa)}`}
+        ${dl("Parcelas a vencer, a valor presente",t.saldo.vincVP)}
+        ${dl("Saldo devedor (a vencer a valor presente)",t.saldo.total,{tot:1})}
+        ${dl("Parcelas a vencer, valor nominal",t.saldo.vincNom,{sub:1})}
+        ${dl("Saldo devedor (a vencer pelo valor nominal)",t.saldo.totalNom,{sub:1})}</dl></div>`
+       :`<div class="card"><h3>Parcelas até a quitação</h3><dl>${dl("Parcelas restantes",0,{t:String(t.restante.qtd)})}${dl("Valor nominal restante",t.restante.total)}${dl("Última parcela",0,{t:t.restante.ultima?dbr(t.restante.ultima):"–"})}${dl("Vencidas em aberto (hoje)",t.saldo.vencidas,{al:t.saldo.vencidas>0})}</dl></div>`}
+      <div class="card"><h3>Valor financiado e taxas</h3><dl>${dl("Valor financiado",t.financiado)}${dl("Seguro financiado",e.seguro)}${e.tarifas?dl("Tarifas financiadas",e.tarifas):""}${dl("Valor liberado",t.liberado,{tot:1})}${dl("Total de juros do contrato",t.totais.juros)}${dl("Total das parcelas",t.totais.parcelas)}${dl("1º período de juros",0,{t:t.f1.toLocaleString("pt-BR",{maximumFractionDigits:2})+(t.f1>1.0001?" meses (com carência)":" mês")})}</dl></div>
+      ${t.semPagamentos?"":`<div class="card"><h3>Pagamentos considerados</h3><dl>${dl("Total pago considerado",pagosTot)}${dl(encL,t.resumoPg.rem)}${CP?"":dl("Juros de mora",t.resumoPg.mora)+dl("Multa",t.resumoPg.multa)}${dl("Amortização extraordinária",t.resumoPg.antecip)}</dl></div>`}
+    </div></div>
+    <div ${aba==="tabela"?"":"hidden"} style="display:flex;flex-direction:column;gap:8px">
+      <div class="tbar"><p class="cap">Cronograma contratual ${e.sistema==="PRICE"?"Price":"SAC"}, sem considerar pagamentos.</p><span class="row"><span id="cp-tab" class="copied"></span><button type="button" class="btn-sm" data-copy="tabela">Copiar para o Excel</button></span></div>
+      ${tabela(["Nº","Vencimento","Parcela","Juros","Amortização","Saldo devedor"],t.parcelas.map(x=>[String(x.n),dbr(x.venc),v(x.valor),v(x.juros),v(x.amort),v(x.saldo)]),["Total","",v(t.totais.parcelas),v(t.totais.juros),v(t.financiado),""])}
+    </div>
+    <div ${aba==="situacao"?"":"hidden"} style="display:flex;flex-direction:column;gap:8px">
+      <div class="tbar"><p class="cap">Posição de cada parcela em ${dbr(t.base)}${e.dataBase?"":" (hoje)"} após os pagamentos informados.</p><span class="row"><span id="cp-sit" class="copied"></span><button type="button" class="btn-sm" data-copy="situacao">Copiar para o Excel</button></span></div>
+      ${tabela(["Nº","Vencimento","Valor original","Valor atual","Pago","Encargos pagos","Antecipado","Em aberto","Encargos em aberto","Status"],t.sit.map(x=>{const ea=r2(x.encRem+x.encMora+x.encMulta);return[String(x.n),dbr(x.venc),v(x.original),x.atual!==x.original?v(x.atual):"",x.pagoPrincipal?v(x.pagoPrincipal):"",x.encargosPagos?v(x.encargosPagos):"",x.antecipada?v(x.antecipada):"",x.aberto?v(x.aberto):"",ea?v(ea):"",`<span class="pill ${STATUS[x.status]}">${x.status}</span>`]}))}
+    </div>
+    <div ${aba==="pagamentos"?"":"hidden"} style="display:flex;flex-direction:column;gap:8px">
+      <p class="cap">Como cada pagamento foi imputado (${e.imputacao==="354"?"encargos primeiro, art. 354 do CC":"proporcional"}).</p>
+      ${t.semPagamentos?`<p>Nenhum pagamento informado.</p>`:tabela(["Data","Valor","Destino","Principal","Dias de atraso",CP?"Comissão":"Juros atraso","Mora","Multa","Redução nominal"],
+        t.pgs.flatMap(x=>x.posBase?[[dbr(x.data),v(x.valor),"Após a data-base","","","","","",""]]:x.aplic.map((y,j)=>[j===0?dbr(x.data):"",j===0?v(x.valor):"",y.tipo==="parcela"?`Parcela ${y.n}`:y.tipo==="antecipacao"?"Antecipação":"Excedente",v(y.principal),y.diasAtraso?String(y.diasAtraso):"",y.rem?v(y.rem):"",y.mora?v(y.mora):"",y.multa?v(y.multa):"",y.desconto?v(y.desconto+y.principal):""])))}
+    </div>
+    <div ${aba==="premissas"?"":"hidden"}><div class="prem"><h3>Premissas do cálculo</h3><ol>${premissas(e,t).map(([a,b])=>`<li><strong>${a}.</strong> ${b}</li>`).join("")}</ol></div></div>
+    <div ${aba==="relatorio"?"":"hidden"} style="display:flex;flex-direction:column;gap:8px">
+      <div class="tbar"><p class="cap">Memória de cálculo pronta para colar no Word ou no Google Docs.</p><span class="row"><span id="cp-rel" class="copied"></span><button type="button" class="btn-pri" data-copy="relatorio">Copiar relatório</button></span></div>
+      <div class="report"><div class="report-doc" id="rel-doc">${relatorio(e,t)}</div></div>
+    </div>
+  </div>`;
+}
+
+/* ---------- relatório ---------- */
+function relatorio(e,t){
+  const CP=e.encargo==="CP";
+  const T=(cab,linhas,rod)=>`<table style="border-collapse:collapse"><thead><tr>${cab.map(c=>`<th>${c}</th>`).join("")}</tr></thead><tbody>${linhas.map(l=>`<tr>${l.map((c,j)=>`<td${j>=2?' style="text-align:right"':""}>${c}</td>`).join("")}</tr>`).join("")}</tbody>${rod?`<tfoot><tr>${rod.map((c,j)=>`<td${j>=2?' style="text-align:right"':""}><b>${c}</b></td>`).join("")}</tr></tfoot>`:""}</table>`;
+  const kv=l=>`<table style="border-collapse:collapse"><tbody>${l.map(([a,b])=>`<tr><th>${a}</th><td style="text-align:right">${b}</td></tr>`).join("")}</tbody></table>`;
+  const cond=[["Sistema de amortização",e.sistema==="PRICE"?"Tabela Price":"SAC"],["Data do contrato",dbr(e.dataContrato)],["1º vencimento",dbr(e.primeiroVenc)],["Nº de parcelas",e.nParcelas],
+    ["Taxa de juros",`${pct(e.taxaMensal,4)} a.m.`],["Taxa anual equivalente",`${pct(t.taxas.anualEf,4)} a.a.`],["Valor financiado","R$ "+v(t.financiado)],["Seguro financiado","R$ "+v(e.seguro)],["Tarifas financiadas","R$ "+v(e.tarifas)],["Valor liberado","R$ "+v(t.liberado)],
+    [e.sistema==="PRICE"?"Parcela":"1ª parcela","R$ "+v(t.parcelas[0].valor)],["Valor calculado",e.solver.desc],["CET calculado",t.taxas.cetM==null?"–":`${pct(t.taxas.cetM,4)} a.m. · ${pct(t.taxas.cetA,4)} a.a.`],
+    ["Capitalização pactuada",e.capitalizacao?"Sim":"Não"],["Encargos do atraso",CP?`Comissão de permanência ${pct(e.cp)} a.m.`:`Multa ${pct(e.multa)} · mora ${pct(e.mora)} a.m.${e.remAtraso?" · remuneratórios à taxa do contrato":""}`]];
+  let s=1;const H=x=>`<h4>${s++}. ${x}</h4>`;
+  return `<h2>Memória de cálculo · reconstrução contratual</h2><p>Data-base: ${e.dataBase?dbr(e.dataBase):dbr(t.base)+" (hoje)"} · emitida em ${dbr(hoje())}</p>
+  ${H("Condições do contrato")}${kv(cond)}
+  ${H("Premissas do cálculo")}<ol>${premissas(e,t).map(([a,b])=>`<li><b>${a}.</b> ${b}</li>`).join("")}</ol>
+  ${H("Evolução contratual")}${T(["Nº","Vencimento","Parcela","Juros","Amortização","Saldo devedor"],t.parcelas.map(x=>[x.n,dbr(x.venc),v(x.valor),v(x.juros),v(x.amort),v(x.saldo)]),["Total","",v(t.totais.parcelas),v(t.totais.juros),v(t.financiado),""])}
+  ${t.semPagamentos?"":H("Imputação dos pagamentos")+T(["Data","Valor","Destino","Principal","Dias de atraso",CP?"Comissão":"Juros atraso","Mora","Multa","Redução nominal"],t.pgs.flatMap(x=>x.posBase?[[dbr(x.data),v(x.valor),"Após a data-base","","","","","",""]]:x.aplic.map((y,j)=>[j===0?dbr(x.data):"",j===0?v(x.valor):"",y.tipo==="parcela"?`Parcela ${y.n}`:y.tipo==="antecipacao"?"Antecipação":"Excedente",v(y.principal),y.diasAtraso||"",y.rem?v(y.rem):"",y.mora?v(y.mora):"",y.multa?v(y.multa):"",y.desconto?v(y.desconto+y.principal):""])))}
+  ${H("Situação das parcelas")}${T(["Nº","Vencimento","Valor original","Valor atual","Pago","Encargos pagos","Em aberto","Encargos em aberto","Status"],t.sit.map(x=>[x.n,dbr(x.venc),v(x.original),v(x.atual),v(x.pagoPrincipal),v(x.encargosPagos),v(x.aberto),v(x.encRem+x.encMora+x.encMulta),x.status]))}
+  ${e.dataBase?H(`Saldo devedor em ${dbr(e.dataBase)}`)+kv([["Parcelas vencidas em aberto","R$ "+v(t.saldo.vencidas)],...(CP?[["Comissão de permanência","R$ "+v(t.saldo.rem)]]:[["Juros remuneratórios do atraso","R$ "+v(t.saldo.rem)],["Juros de mora","R$ "+v(t.saldo.mora)],["Multa","R$ "+v(t.saldo.multa)]]),["Parcelas a vencer, a valor presente","R$ "+v(t.saldo.vincVP)],["<b>Saldo devedor (a vencer a valor presente)</b>","<b>R$ "+v(t.saldo.total)+"</b>"],["Parcelas a vencer, valor nominal","R$ "+v(t.saldo.vincNom)],["Saldo devedor (a vencer pelo valor nominal)","R$ "+v(t.saldo.totalNom)]]):""}`;
+}
+function htmlWord(){
+  const doc=$("rel-doc").cloneNode(true);
+  doc.querySelectorAll("table").forEach(tb=>tb.setAttribute("style","border-collapse:collapse;font-family:Calibri,Arial,sans-serif;font-size:9pt"));
+  doc.querySelectorAll("td,th").forEach(c=>c.setAttribute("style",(c.getAttribute("style")||"")+";border:1px solid #999;padding:2px 5px"));
+  doc.querySelectorAll("th").forEach(c=>c.setAttribute("style",c.getAttribute("style")+";background:#f2efe9;text-align:left"));
+  return `<div style="font-family:Calibri,Arial,sans-serif;font-size:10pt">${doc.innerHTML}</div>`;
+}
+
+/* ---------- cópia ---------- */
+function textoTabela(qual){
+  const {t}=ultimo;
+  if(qual==="tabela")return ["Nº\tVencimento\tParcela\tJuros\tAmortização\tSaldo devedor",...t.parcelas.map(x=>[x.n,dbr(x.venc),v(x.valor),v(x.juros),v(x.amort),v(x.saldo)].join("\t"))].join("\n");
+  return ["Nº\tVencimento\tValor original\tValor atual\tPago (principal)\tEncargos pagos\tAntecipado (nominal)\tEm aberto\tEncargos em aberto\tStatus",...t.sit.map(x=>[x.n,dbr(x.venc),v(x.original),v(x.atual),v(x.pagoPrincipal),v(x.encargosPagos),v(x.antecipada),v(x.aberto),v(x.encRem+x.encMora+x.encMulta),x.status].join("\t"))].join("\n");
+}
+function aviso(id,txt){const el=$(id);if(!el)return;el.textContent=txt;el.style.color=txt.startsWith("Cop")?"var(--ok)":"var(--crit)";setTimeout(()=>{if(el)el.textContent=""},2500)}
+function selecionar(el){const r=document.createRange();r.selectNodeContents(el);const s=getSelection();s.removeAllRanges();s.addRange(r)}
+function copiar(qual){
+  if(!ultimo)return;
+  const id=qual==="tabela"?"cp-tab":qual==="situacao"?"cp-sit":"cp-rel";
+  if(qual==="relatorio"){
+    const html=htmlWord(),txt=$("rel-doc").innerText;
+    try{
+      if(window.ClipboardItem&&navigator.clipboard?.write){
+        navigator.clipboard.write([new ClipboardItem({"text/html":new Blob([html],{type:"text/html"}),"text/plain":new Blob([txt],{type:"text/plain"})})]).then(()=>aviso(id,"Copiado"),()=>{selecionar($("rel-doc"));aviso(id,"Relatório selecionado: use Ctrl+C")});
+        return;
+      }
+    }catch{}
+    selecionar($("rel-doc"));aviso(id,"Relatório selecionado: use Ctrl+C");return;
+  }
+  const txt=textoTabela(qual);
+  try{navigator.clipboard.writeText(txt).then(()=>aviso(id,"Copiado"),()=>aviso(id,"Cópia bloqueada neste aplicativo"))}catch{aviso(id,"Cópia bloqueada neste aplicativo")}
+}
+
+/* ---------- eventos ---------- */
+function mudou(){exemplo=false;renderTop();render()}
+document.addEventListener("input",ev=>{
+  const el=ev.target;
+  if(el.dataset.k){F[el.dataset.k]=el.value;mudou();return}
+  if(el.dataset.pg!=null){F.pagamentos[+el.dataset.pg][el.dataset.f]=el.value;$("pg-legend").textContent=`Pagamentos (${F.pagamentos.filter(p=>p.data||p.valor).length})`;mudou();return}
+  if(el.dataset.fe!=null){F.feriados[+el.dataset.fe]=el.value;mudou();return}
+  if(el.id==="i-colar"){colarTxt=el.value}
+});
+document.addEventListener("change",ev=>{
+  const el=ev.target;
+  if(el.id==="i-cap"){F.cap=el.checked;mudou()}
+  if(el.id==="i-rem"){F.remAtraso=el.checked;mudou()}
+});
+document.addEventListener("click",ev=>{
+  const b=ev.target.closest("button");if(!b)return;
+  const sg=b.closest("[data-seg]");
+  if(sg){const k=sg.dataset.seg;F[k]=b.dataset.v;sg.querySelectorAll("button").forEach(x=>x.setAttribute("aria-checked",String(x===b)));
+    if(k==="sistema"||k==="calc"){renderForm();mudou();return}
+    if(k==="encargo"){const cp=F.encargo==="CP";$("cp-box").hidden=!cp;$("cp-hint").hidden=!cp;$("rem-box").hidden=cp}
+    mudou();return}
+  if(b.dataset.tab){aba=b.dataset.tab;render();$("tab-"+aba)?.focus();return}
+  if(b.dataset.copy){copiar(b.dataset.copy);return}
+  if(b.dataset.pgDel!=null){F.pagamentos.splice(+b.dataset.pgDel,1);renderPgs();mudou();return}
+  if(b.dataset.feDel!=null){F.feriados.splice(+b.dataset.feDel,1);renderFeriados();mudou();return}
+  switch(b.id){
+    case "pg-add":F.pagamentos.push({data:"",valor:""});renderPgs();$("pg-d-"+(F.pagamentos.length-1))?.focus();render();break;
+    case "fe-add":F.feriados.push("");renderFeriados();$("fe-"+(F.feriados.length-1))?.focus();break;
+    case "pg-colar":colar=!colar;$("colar-box").hidden=!colar;break;
+    case "colar-ok":{
+      const linhas=colarTxt.split(/\r?\n/).map(l=>l.split(/\t|;/).map(x=>x.trim())).filter(l=>l.length>=2&&pdata(l[0])).map(l=>({data:pdata(l[0]),valor:l[1]}));
+      F.pagamentos=[...F.pagamentos.filter(p=>p.data||p.valor),...linhas].sort((a,b)=>a.data.localeCompare(b.data));
+      colarTxt="";colar=false;renderForm();mudou();break}
+    case "apur-on":F.apurar=true;if(!F.dataBase)F.dataBase=hoje();renderApur();mudou();break;
+    case "apur-off":F.apurar=false;renderApur();mudou();break;
+    case "b-novo":confirmar=true;renderTop();break;
+    case "b-cancel":confirmar=false;renderTop();break;
+    case "b-del":F=VAZIO();exemplo=false;confirmar=false;mostrarErros=false;renderForm();renderTop();render();mostrarErros=true;break;
+  }
+});
+document.addEventListener("focusout",ev=>{if(ev.target.matches("input")&&!mostrarErros){mostrarErros=true;render()}});
+
+mostrarErros=false;renderForm();renderTop();render();mostrarErros=true;
+})();
+</script>
+</body>
+</html>

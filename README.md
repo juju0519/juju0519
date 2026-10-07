@@ -6,6 +6,10 @@
 - 😄 Pronouns: ...
 - ⚡ Fun fact: ...
 
+## Projetos
+
+- [Calculadora Revisional](calculadora-revisional/): reconstrói a dívida de contratos bancários (Price ou SAC) com base nas condições contratuais, apura encargos do atraso e saldo devedor, e gera a memória de cálculo.
+
 <!---
 juju0519/juju0519 is a ✨ special ✨ repository because its `README.md` (this file) appears on your GitHub profile.
 You can click the Preview link to take a look at your changes.
