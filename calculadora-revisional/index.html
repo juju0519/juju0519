@@ -92,6 +92,7 @@ legend+*{clear:both}
 .seg button[aria-checked="true"]{background:var(--gold);color:var(--on-gold);font-weight:700}
 .check{display:flex;align-items:flex-start;gap:8px;font-size:12.5px}
 .check input{margin-top:3px;accent-color:var(--gold)}
+.sub{display:flex;flex-direction:column;gap:6px;padding-left:22px;margin-top:-4px}
 .mini-row{display:grid;grid-template-columns:1fr 1fr 24px;gap:6px;align-items:center}
 .mini-row.one{grid-template-columns:1fr 24px;max-width:220px}
 .mini-row input{min-width:0;border:1px solid var(--input);border-radius:4px;background:var(--card);padding:4px 6px;font-size:12px;font-family:var(--f-num);outline:none}
@@ -533,7 +534,7 @@ function renderForm(){
     ${campo("seguro","Seguro financiado",{suf:"R$"})}${campo("tarifas","Tarifas financiadas",{suf:"R$"})}</div>
     <p class="hint" id="liberado"></p>
     <label class="check" for="i-cap"><input id="i-cap" type="checkbox" ${F.cap?"checked":""}><span>O contrato prevê capitalização de juros</span></label>
-    <div id="capper-box" ${F.cap?"":"hidden"}>${seg("capPer","Periodicidade da capitalização",[["MENSAL","Mensal"],["DIARIA","Diária"]])}</div>
+    <div id="capper-box" class="sub" role="radiogroup" aria-label="Periodicidade da capitalização" ${F.cap?"":"hidden"}>${[["MENSAL","Mensal"],["DIARIA","Diária"]].map(([val,t])=>`<label class="check"><input type="radio" name="capPer" value="${val}" ${F.capPer===val?"checked":""}><span>${t}</span></label>`).join("")}</div>
     ${campo("cp","Comissão de permanência",{suf:"% a.m.",hint:"Preenchida, substitui multa e juros no atraso (Súmula 472/STJ)."})}
     <div class="g2">${campo("multa","Multa",{suf:"%"})}${campo("mora","Juros de mora",{suf:"% a.m."})}</div>
     <label class="check" for="i-rem" id="rem-box"><input id="i-rem" type="checkbox" ${F.remAtraso?"checked":""}><span>Juros remuneratórios também no período de atraso</span></label>
@@ -721,6 +722,7 @@ document.addEventListener("input",ev=>{
 });
 document.addEventListener("change",ev=>{
   const el=ev.target;
+  if(el.name==="capPer"){F.capPer=el.value;mudou()}
   if(el.id==="i-cap"){F.cap=el.checked;$("capper-box").hidden=!F.cap;mudou()}
   if(el.id==="i-rem"){F.remAtraso=el.checked;mudou()}
 });

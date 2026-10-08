@@ -18,7 +18,7 @@ Os campos com asterisco vermelho ao lado do nome são obrigatórios.
 | Valor Financiado, nº de parcelas, taxa e Valor da Parcela | Na Price, informe três; o campo deixado em branco é calculado. Com os quatro informados, o cronograma usa o Valor da Parcela informado. No SAC, a parcela é sempre calculada |
 | Data de celebração e 1º vencimento | O 1º período usa os dias efetivos entre as datas |
 | Seguro e tarifas financiados | Opcionais; entram no CET e geram alertas |
-| Capitalização de juros | Caixa de seleção. Marcada, abre a periodicidade: mensal ou diária |
+| Capitalização de juros | Caixa de seleção. Marcada, mostra abaixo as opções Mensal e Diária |
 | Comissão de permanência | Opcional. Preenchida, desativa multa, juros de mora e juros remuneratórios do atraso |
 | Feriados locais | Fins de semana e feriados bancários nacionais já são considerados |
 | Pagamentos | Data e valor; aceita colar duas colunas do Excel |
