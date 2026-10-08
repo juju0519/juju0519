@@ -128,6 +128,7 @@ textarea{border:1px solid var(--input);border-radius:4px;background:var(--card);
 .readonly .box{background:var(--soft);border-style:dashed}
 .readonly .box input{font-weight:500;color:var(--gold-ink)}
 .calc .box{background:var(--soft);border-style:dashed}
+.off{opacity:.45}.off .box{background:var(--soft)}
 .calc .box input::placeholder{font-weight:500;color:var(--gold-ink);opacity:1}
 .counts{display:flex;flex-wrap:wrap;align-items:center;gap:4px 16px}
 .counts span{font-size:12px;font-weight:700}
@@ -234,17 +235,22 @@ function feriadosNacionais(a,b){const s=new Set();for(let y=+a.slice(0,4);y<=+b.
 function diaUtil(d,set){let x=d;for(;;){const w=new Date(toMs(x)).getUTCDay();if(w!==0&&w!==6&&!set.has(x))return x;x=addDias(x,1)}}
 
 /* ---------- cronograma contratual ---------- */
+/* Parcela Price por R$ 1 de Valor Financiado. Mensal: (1+i)^(dias/30) no 1º período e mês de 30 dias depois. Diária: taxa diária i/30 capitalizada por dia corrido até cada vencimento. */
+function pmtUnit(x,dc,pv,N,dia){
+  if(!dia){const f1=dias(dc,pv)/30;return Math.pow(1+x,f1-1)*(x===0?1/N:x/(1-Math.pow(1+x,-N)))}
+  let s=0;for(let k=0;k<N;k++)s+=Math.pow(1+x/30,-dias(dc,addMeses(pv,k)));return 1/s;
+}
 function cronograma(e){
   const i=e.taxaMensal,N=e.nParcelas,fin=r2(e.valorFinanciado),f1=dias(e.dataContrato,e.primeiroVenc)/30;
   const vencs=Array.from({length:N},(_,k)=>addMeses(e.primeiroVenc,k));
   const out=[];let saldo=fin;
+  const fj=k=>e.capDiaria?Math.pow(1+i/30,dias(k===0?e.dataContrato:vencs[k-1],vencs[k])):Math.pow(1+i,k===0?f1:1);
   if(e.sistema==="PRICE"){
-    const aj=fin*Math.pow(1+i,f1-1);
-    const pmt=e.pmtFixo??r2(i===0?aj/N:aj*i/(1-Math.pow(1+i,-N)));
-    vencs.forEach((venc,k)=>{let j=r2(saldo*(Math.pow(1+i,k===0?f1:1)-1)),val=pmt,am=r2(pmt-j);if(k===N-1){am=saldo;val=r2(am+j)}saldo=r2(saldo-am);out.push({n:k+1,venc,valor:val,juros:j,amort:am,saldo})});
+    const pmt=e.pmtFixo??r2(fin*pmtUnit(i,e.dataContrato,e.primeiroVenc,N,e.capDiaria));
+    vencs.forEach((venc,k)=>{let j=r2(saldo*(fj(k)-1)),val=pmt,am=r2(pmt-j);if(k===N-1){am=saldo;val=r2(am+j)}saldo=r2(saldo-am);out.push({n:k+1,venc,valor:val,juros:j,amort:am,saldo})});
   }else{
     const am0=r2(fin/N);
-    vencs.forEach((venc,k)=>{const j=r2(saldo*(Math.pow(1+i,k===0?f1:1)-1)),am=k===N-1?saldo:am0;saldo=r2(saldo-am);out.push({n:k+1,venc,valor:r2(am+j),juros:j,amort:am,saldo})});
+    vencs.forEach((venc,k)=>{const j=r2(saldo*(fj(k)-1)),am=k===N-1?saldo:am0;saldo=r2(saldo-am);out.push({n:k+1,venc,valor:r2(am+j),juros:j,amort:am,saldo})});
   }
   return{financiado:fin,f1,parcelas:out};
 }
@@ -258,7 +264,7 @@ function calcular(e){
   const fer=feriadosNacionais(e.dataContrato,addDias(fim,400));e.feriados.forEach(f=>fer.add(f));
   const liberado=r2(financiado-e.seguro-e.tarifas);
   const sem=e.pagamentos.length===0;
-  const fComp=(tx,d)=>cap?Math.pow(1+tx,d/30)-1:tx*d/30;
+  const fComp=(tx,d)=>cap?(e.capDiaria?Math.pow(1+tx/30,d):Math.pow(1+tx,d/30))-1:tx*d/30;
   const fRem=d=>CP?fComp(e.cp,d):(e.remAtraso?fComp(i,d):0);
   const fMora=d=>CP?0:e.mora*d/30;
   const fMulta=()=>CP?0:e.multa;
@@ -332,7 +338,7 @@ function calcular(e){
       }else vp=r2(p[t]/Math.pow(1+i,dias(base,x.venc)/30));
     }
     const quit=!aberto;
-    const status=(venc||quit)?(quit?(antecip[t]>0&&pago[t]<.01?"Antecipada":atrasoMax[t]>0?"Paga em atraso":"Paga"):(pago[t]>0||encPago[t]>0?"Parcial em aberto":"Em aberto")):(antecip[t]>0?"A vencer (reduzida)":"A vencer");
+    const status=(venc||quit)?(quit?(antecip[t]>0&&pago[t]<.01?"Antecipada":atrasoMax[t]>0?"Paga em atraso":"Paga"):(pago[t]>0||encPago[t]>0?"Em atraso (parcial)":"Em atraso")):(antecip[t]>0?"Vincenda (reduzida)":"Vincenda");
     return{n:x.n,venc:x.venc,original:x.valor,atual:atual[t],pagoPrincipal:pago[t],encargosPagos:encPago[t],ultimoPg:ultimo[t],
       atrasoMax:venc&&!quit?dias(x.venc,base):atrasoMax[t],aberto:p[t],antecipada:antecip[t],encRem:rem,encMora:mora,encMulta:multa,vpBase:vp,status};
   });
@@ -351,7 +357,7 @@ function calcular(e){
   return{financiado,liberado,base,f1,parcelas:r,sit,pgs,saldo,semPagamentos:sem,resumoPg,
     restante:{qtd:abertas.length,total:r2(abertas.reduce((a,x)=>a+x.aberto,0)),ultima:abertas.length?abertas[abertas.length-1].venc:null},
     totais:{parcelas:r2(r.reduce((a,x)=>a+x.valor,0)),juros:r2(r.reduce((a,x)=>a+x.juros,0))},
-    taxas:{mensal:i,anualEf:Math.pow(1+i,12)-1,nominal:12*i,cetM,cetA:cetM==null?null:Math.pow(1+cetM,12)-1},
+    taxas:{mensal:i,mensalEf:e.capDiaria?Math.pow(1+i/30,30)-1:i,anualEf:e.capDiaria?Math.pow(1+i/30,365)-1:Math.pow(1+i,12)-1,nominal:12*i,cetM,cetA:cetM==null?null:Math.pow(1+cetM,12)-1},
     nFeriados:anosFer.length};
 }
 
@@ -366,21 +372,25 @@ function alertas(e,t){
     ind:"Indício de juros moratórios acima do limite (Súmula 379/STJ).",
     av:["se a taxa vem rotulada de outra forma (ex.: “juros de mora diários”, “encargos de inadimplência”)","cumulação com comissão de permanência (Súmula 472/STJ)"]});
   if(CP){
-    const teto=e.taxaMensal+e.mora;
-    if(e.cp>teto+5e-5)a.push({n:"crit",ti:"Comissão de permanência acima do teto",tx:`${pct(e.cp)} a.m. supera a soma dos juros remuneratórios (${pct(e.taxaMensal)}) e de mora (${pct(e.mora)}) do contrato. O cálculo aplica a taxa pactuada.`,
+    const teto=e.taxaMensal+.01;
+    if(e.cp>teto+5e-5)a.push({n:"crit",ti:"Comissão de permanência acima do teto",tx:`${pct(e.cp)} a.m. supera o teto de ${pct(teto)} a.m.: juros remuneratórios do contrato (${pct(e.taxaMensal)}) mais juros de mora de 1% a.m. O cálculo aplica a taxa pactuada.`,
       ind:"Indício de comissão de permanência acima do teto (Súmula 472/STJ; REsp 1.058.114/RS, repetitivo).",
       av:["cumulação com correção monetária (Súmula 30/STJ), juros remuneratórios, mora ou multa (Súmula 472/STJ)","taxa da comissão frente à taxa média de mercado, limitada à do contrato (Súmula 294/STJ)"]});
     a.push({n:"info",ti:"Comissão de permanência sem cumulação",tx:`No atraso, aplica-se só a comissão de ${pct(e.cp)} a.m., sem juros remuneratórios, mora e multa.`,
       fund:"Súmula 472/STJ.",av:["se os extratos ou a planilha do banco cobram outros encargos junto com a comissão"]});
   }
+  if(e.capDiaria){const m=Math.pow(1+e.taxaMensal/30,30)-1,an=Math.pow(1+e.taxaMensal/30,365)-1;
+    a.push({n:"info",ti:"Capitalização diária",tx:`Taxa diária de ${pct(e.taxaMensal/30,4)} capitalizada por dia corrido: equivale a ${pct(m,4)} a.m. e ${pct(an)} a.a., acima da taxa mensal informada (${pct(e.taxaMensal)}).`,
+      fund:"A capitalização diária exige pactuação expressa e informação clara da taxa diária (STJ, REsp 1.826.463, 3ª Turma, 2020; arts. 6º, III, e 46 do CDC).",
+      av:["taxa diária expressa no contrato","taxa efetiva mensal e anual informadas frente à capitalização diária"]});}
   if(!e.capitalizacao&&e.sistema==="PRICE")a.push({n:"warn",ti:"Price sem capitalização pactuada",tx:"A fase de normalidade segue a Tabela Price contratada; os encargos do atraso foram calculados com juros simples.",
     ind:"Indício de capitalização não pactuada (Súmulas 539 e 541/STJ; art. 5º da MP 2.170-36/2001).",
     av:["cláusula expressa de capitalização ou taxa anual superior a 12 vezes a mensal no contrato","data de celebração (capitalização mensal só a partir de 31/03/2000)"]});
   const venc=t.sit.filter(x=>x.venc<=t.base&&(x.aberto>.004||x.encRem+x.encMora+x.encMulta>.004));
-  if(venc.length)a.push({n:"crit",ti:`${venc.length} parcela(s) vencida(s) em aberto`,tx:`Parcelas ${venc.map(x=>x.n).join(", ")}: R$ ${v(t.saldo.vencidas)} de principal, mais R$ ${v(t.saldo.rem+t.saldo.mora+t.saldo.multa)} de encargos até ${br}.`,
+  if(venc.length)a.push({n:"crit",ti:`${venc.length} Parcela(s) em Atraso`,tx:`Parcelas ${venc.map(x=>x.n).join(", ")}: R$ ${v(t.saldo.vencidas)} de principal, mais R$ ${v(t.saldo.rem+t.saldo.mora+t.saldo.multa)} de encargos até ${br}.`,
     fund:"Mora no vencimento (art. 397 do Código Civil). Só a abusividade nos encargos da normalidade descaracteriza a mora (REsp 1.061.530/RS, repetitivo).",
     av:["comprovantes de pagamento não lançados","débitos automáticos em conta não informados","vencimento antecipado da dívida, se declarado pelo banco"]});
-  if(e.seguro>0)a.push({n:"warn",ti:"Seguro financiado",tx:`R$ ${v(e.seguro)} (${pct(e.seguro/t.financiado)} do valor financiado) sofrem juros por todo o prazo.`,
+  if(e.seguro>0)a.push({n:"warn",ti:"Seguro financiado",tx:`R$ ${v(e.seguro)} (${pct(e.seguro/t.financiado)} do Valor Financiado) sofrem juros por todo o prazo.`,
     ind:"Indício de venda casada (art. 39, I, CDC; Tema 972/STJ, REsp 1.639.320/SP).",
     av:["proposta ou apólice assinada em instrumento separado","possibilidade de escolha da seguradora","seguradora do mesmo grupo econômico do banco","juros cobrados sobre o prêmio financiado (restituição com reflexos)"]});
   if(e.tarifas>0)a.push({n:"warn",ti:"Tarifas financiadas",tx:`R$ ${v(e.tarifas)} de tarifas sofrem juros por todo o prazo.`,
@@ -391,19 +401,19 @@ function alertas(e,t){
     fund:"Cláusula de inadimplência do contrato; imputação conforme a opção escolhida (art. 354 do Código Civil ou proporcional).",
     av:["se os encargos cobrados pelo banco nos extratos coincidem com os calculados"]});
   const pos=t.pgs.filter(x=>x.posBase);
-  if(pos.length)a.push({n:"warn",ti:"Pagamentos depois da data de apuração",tx:`${pos.length} pagamento(s) após ${br} não entram no saldo. Mude a data de apuração para considerá-los.`});
+  if(pos.length)a.push({n:"warn",ti:"Pagamentos depois da Data-Base",tx:`${pos.length} pagamento(s) após ${br} não entram no saldo. Mude a Data-Base para considerá-los.`});
   if(t.resumoPg.sobra>0)a.push({n:"warn",ti:"Pagamento acima do saldo",tx:`R$ ${v(t.resumoPg.sobra)} excedem o necessário para quitar o contrato.`,
     ind:"Indício de pagamento indevido (art. 876 do Código Civil; art. 42, parágrafo único, CDC).",
     av:["se o excedente foi devolvido ou compensado","se há encargos cobrados pelo banco fora do contrato"]});
   if(t.semPagamentos)a.push({n:"info",ti:"Sem pagamentos informados",tx:`As parcelas vencidas até ${br} foram consideradas pagas em dia. Informe os pagamentos para apurar atrasos.`});
-  if(t.resumoPg.antecip>0)a.push({n:"info",ti:"Amortização extraordinária",tx:`R$ ${v(t.resumoPg.antecip)} anteciparam parcelas futuras com desconto à taxa do contrato, ${e.modoAntecipacao==="PRAZO"?"quitando as últimas parcelas":"reduzindo o valor das parcelas"}.`,
+  if(t.resumoPg.antecip>0)a.push({n:"info",ti:"Pagamento Extraordinário",tx:`R$ ${v(t.resumoPg.antecip)} anteciparam parcelas futuras com desconto à taxa do contrato, ${e.modoAntecipacao==="PRAZO"?"quitando as últimas parcelas":"reduzindo o valor das parcelas"}.`,
     fund:"Art. 52, § 2º, CDC; Res. CMN 3.516/2007.",
     av:["se o banco concedeu a redução proporcional dos juros (extratos ou termo de quitação)","se houve cobrança de tarifa de liquidação antecipada"]});
   if(t.taxas.cetM!=null&&t.taxas.cetM-e.taxaMensal>5e-5){const o=[e.seguro>0&&"do seguro",e.tarifas>0&&"das tarifas"].filter(Boolean);
     a.push({n:"info",ti:"CET acima da taxa de juros",tx:`CET de ${pct(t.taxas.cetM)} a.m. contra taxa de ${pct(e.taxaMensal)} a.m. A diferença vem ${o.join(" e ")} financiado(s).`,
       fund:"O CET deve constar do contrato e incluir todos os encargos e despesas (Res. CMN 4.881/2020).",
       av:["CET informado no contrato","IOF financiado, que este cálculo não inclui"]});}
-  if(!venc.length&&!t.semPagamentos&&t.sit.some(x=>x.venc<=t.base))a.push({n:"ok",ti:"Nenhuma parcela vencida em aberto",tx:`Os pagamentos informados quitam todas as parcelas vencidas até ${br}.`});
+  if(!venc.length&&!t.semPagamentos&&t.sit.some(x=>x.venc<=t.base))a.push({n:"ok",ti:"Nenhuma Parcela em Atraso",tx:`Os pagamentos informados quitam todas as parcelas vencidas até ${br}.`});
   if(!CP&&e.multa<=.02&&e.mora<=.01)a.push({n:"ok",ti:"Multa e mora dentro dos limites",tx:`Multa de ${pct(e.multa)} e mora de ${pct(e.mora)} a.m.`,fund:"Art. 52, § 1º, CDC; Súmula 379/STJ."});
   const ord=["crit","warn","info","ok"];return a.sort((x,y)=>ord.indexOf(x.n)-ord.indexOf(y.n));
 }
@@ -415,30 +425,30 @@ function alertaHtml(x){
 
 /* ---------- premissas ---------- */
 function premissas(e,t){
-  const CP=e.encargo==="CP",forma=e.capitalizacao?"compostos, fator (1 + i)^(dias ÷ 30)":"simples, i × dias ÷ 30";
+  const CP=e.encargo==="CP",forma=e.capitalizacao?(e.capDiaria?"compostos diários, fator (1 + i ÷ 30)^dias":"compostos, fator (1 + i)^(dias ÷ 30)"):"simples, i × dias ÷ 30";
   const l=[];
   l.push(["Fonte","Cálculo feito só com as condições do contrato e os pagamentos informados. Não reproduz o sistema de nenhum banco."]);
   l.push(["Sistema de amortização",e.sistema==="PRICE"?"Tabela Price: parcelas iguais; juros sobre o saldo devedor; a última parcela absorve a diferença de arredondamento.":"SAC: amortização constante; juros sobre o saldo devedor."]);
   l.push(["Valor calculado",e.solver.premissa]);
-  l.push(["Contagem do tempo",`Dias corridos entre as datas; mês de 30 dias. Na fase de normalidade, frações de mês em juros compostos. 1º período de juros: ${t.f1.toLocaleString("pt-BR",{maximumFractionDigits:2})} mês(es).`]);
+  l.push(["Contagem do tempo",e.capDiaria?`Dias corridos entre as datas; juros de cada parcela pelos dias efetivos do período.`:`Dias corridos entre as datas; mês de 30 dias. Na fase de normalidade, frações de mês em juros compostos. 1º período de juros: ${t.f1.toLocaleString("pt-BR",{maximumFractionDigits:2})} mês(es).`]);
   l.push(["Arredondamento","Valores arredondados ao centavo em cada lançamento (juros, amortização, saldo e encargos)."]);
-  l.push(["Capitalização",e.capitalizacao?"O contrato prevê capitalização de juros: encargos remuneratórios do atraso em juros compostos.":"O contrato não prevê capitalização de juros: encargos remuneratórios do atraso em juros simples."]);
-  l.push(["Encargos do atraso",CP?`Comissão de permanência de ${pct(e.cp)} a.m., ${forma}, sobre o principal em aberto da parcela, sem juros remuneratórios, mora e multa (Súmula 472/STJ).`
+  l.push(["Capitalização",e.capitalizacao?(e.capDiaria?`Capitalização diária: taxa diária de ${pct(e.taxaMensal/30,4)} (taxa mensal ÷ 30) capitalizada por dia corrido, na fase de normalidade e nos encargos remuneratórios do atraso.`:"Capitalização mensal: encargos remuneratórios do atraso em juros compostos."):"O contrato não prevê capitalização de juros: encargos remuneratórios do atraso em juros simples."]);
+  l.push(["Encargos de Atraso",CP?`Comissão de permanência de ${pct(e.cp)} a.m., ${forma}, sobre o principal em aberto da parcela, sem juros remuneratórios, mora e multa (Súmula 472/STJ).`
     :`Multa de ${pct(e.multa)}, cobrada uma vez sobre o valor em aberto da parcela; juros de mora de ${pct(e.mora)} a.m., simples (taxa × dias ÷ 30)${e.remAtraso?`; juros remuneratórios de ${pct(e.taxaMensal)} a.m., ${forma}`:"; sem juros remuneratórios no atraso"}. Base: principal da parcela em aberto. Encargos não pagos não rendem juros.`]);
   l.push(["Dia útil",`Vencimento em sábado, domingo ou feriado bancário pago no dia útil seguinte não gera encargos. Incluídos os feriados nacionais (1º/1, Carnaval segunda e terça, Sexta-feira Santa, 21/4, 1º/5, Corpus Christi, 7/9, 12/10, 2/11, 15/11, 20/11 a partir de 2024, 25/12)${e.feriados.length?` e ${e.feriados.length} feriado(s) local(is) informado(s)`:""}.`]);
   l.push(["Imputação dos pagamentos",(e.imputacao==="354"?"Art. 354 do Código Civil: cada pagamento quita primeiro os encargos vencidos da parcela (juros remuneratórios ou comissão, mora e multa) e depois o capital. Os encargos ficam quitados até a data do pagamento; o capital remanescente volta a gerar encargos a partir dela."
     :"Proporcional: cada pagamento quita principal e encargos da parcela na mesma proporção; o principal remanescente continua gerando encargos desde o vencimento.")
-    +` Ordem: parcela vencida mais antiga; depois a próxima parcela a vencer, pelo valor nominal; o excedente é amortização extraordinária com desconto à taxa do contrato (art. 52, § 2º, CDC; Res. CMN 3.516/2007), ${e.modoAntecipacao==="PRAZO"?"quitando as últimas parcelas (reduz o prazo)":"reduzindo o valor das parcelas"}.`]);
-  l.push(["Saldo devedor",e.dataBase?`Em ${dbr(e.dataBase)}: parcelas vencidas em aberto com encargos até a data, mais parcelas a vencer, apresentadas a valor presente (desconto à taxa do contrato) e pelo valor nominal.`:"Sem data de apuração: a calculadora mostra as parcelas restantes até a quitação, tomando hoje como referência."]);
-  l.push(["CET","Taxa que iguala o valor liberado (financiado − seguro − tarifas) ao fluxo das parcelas nas datas de vencimento, em base mensal de 30 dias, anualizada de forma composta. O banco calcula em base anual de 365 dias (Res. CMN 4.881/2020); pode haver diferença nas casas decimais. IOF não incluído."]);
-  if(t.semPagamentos)l.push(["Sem pagamentos","Sem pagamentos informados, as parcelas vencidas até a data-base foram tidas como pagas em dia."]);
+    +` Ordem: Parcela em Atraso mais antiga; depois a próxima Parcela Vincenda, pelo valor nominal; o excedente é Pagamento Extraordinário com desconto à taxa do contrato (art. 52, § 2º, CDC; Res. CMN 3.516/2007), ${e.modoAntecipacao==="PRAZO"?"quitando as últimas parcelas (reduz o prazo)":"reduzindo o valor das parcelas"}.`]);
+  l.push(["Saldo devedor",e.dataBase?`Em ${dbr(e.dataBase)}: Parcelas em Atraso com Encargos de Atraso até a data, mais Parcelas Vincendas, apresentadas a valor presente (desconto à taxa do contrato) e pelo valor nominal.`:"Sem Data-Base: a calculadora mostra as parcelas restantes até a quitação, tomando hoje como referência."]);
+  l.push(["CET","Taxa que iguala o Valor Liberado (Valor Financiado − seguro − tarifas) ao fluxo das parcelas nas datas de vencimento, em base mensal de 30 dias, anualizada de forma composta. O banco calcula em base anual de 365 dias (Res. CMN 4.881/2020); pode haver diferença nas casas decimais. IOF não incluído."]);
+  if(t.semPagamentos)l.push(["Sem pagamentos","Sem pagamentos informados, as parcelas vencidas até a Data-Base foram tidas como pagas em dia."]);
   l.push(["Não incluído","IOF complementar de atraso e correção monetária."]);
   return l;
 }
 
 /* ---------- estado ---------- */
 const KEY="calc-contratual-v5",OLDS=["calc-contratual-v4","calc-contratual-v3"];
-const VAZIO=()=>({sistema:"PRICE",calc:"PARCELA",dataContrato:"",primeiroVenc:"",nParcelas:"",taxa:"",parcela:"",valorFinanciado:"",seguro:"0,00",tarifas:"0,00",encargo:"PADRAO",multa:"2",mora:"1",cp:"",remAtraso:true,cap:true,imput:"354",feriados:[],modo:"PRAZO",apurar:false,dataBase:hoje(),pagamentos:[]});
+const VAZIO=()=>({sistema:"PRICE",calc:"PARCELA",dataContrato:"",primeiroVenc:"",nParcelas:"",taxa:"",parcela:"",valorFinanciado:"",seguro:"0,00",tarifas:"0,00",encargo:"PADRAO",multa:"2",mora:"1",cp:"",remAtraso:true,cap:true,capPer:"MENSAL",imput:"354",feriados:[],modo:"PRAZO",apurar:false,dataBase:hoje(),pagamentos:[]});
 const clone=o=>JSON.parse(JSON.stringify(o));
 let F,exemplo,mostrarErros=true,confirmar=false,colar=false,aba="resumo",colarTxt="";
 (function carregar(){
@@ -470,34 +480,36 @@ function entrada(){
   if(calc&&calc!=="PARCELA"){pc=num(F.parcela);if(pc==null||pc<=0)er.parcela="Informe a parcela"}
   const nn=(k)=>{const x=num(F[k]);if(x!=null&&x<0)er[k]="Não pode ser negativo";return x??0};
   const sg=nn("seguro"),tar=nn("tarifas"),mu=nn("multa"),mo=nn("mora");
-  let cp=null;if(F.encargo==="CP"){cp=num(F.cp);if(cp==null||cp<0||cp>30)er.cp="Informe a taxa da comissão"}
+  let cp=num(F.cp);if(cp!=null&&(cp<0||cp>30))er.cp="Taxa mensal inválida";if(!(cp>0))cp=null;
   const pgs=[];F.pagamentos.forEach((p,k)=>{if(!p.data&&!p.valor)return;const d=pdata(p.data),x=num(p.valor);if(!d||x==null||x<=0){er["pg"+k]="Data ou valor inválido";return}pgs.push({data:d,valor:x})});
   let i=tx!=null?tx/100:null,solver=null;
   if(!Object.keys(er).length){
     const f1=dias(dc,pv)/30,ajf=x=>Math.pow(1+x,f1-1),fat=(x,N)=>x===0?1/N:x/(1-Math.pow(1+x,-N));
     const base1=f1.toLocaleString("pt-BR",{maximumFractionDigits:2});
     const cidadao=Math.abs(f1-1)>.001?` O 1º período tem ${base1} meses; a Calculadora do Cidadão (Banco Central) considera 1º vencimento em 30 dias, por isso os resultados podem divergir.`:"";
-    if(calc==="VF"){vf=r2(pc/fat(i,n)/ajf(i));solver={k:"valorFinanciado",valor:v(vf),desc:`Valor financiado: R$ ${v(vf)}`,premissa:`Valor financiado calculado (R$ ${v(vf)}) a partir do prazo, da taxa e da parcela informados, pela fórmula da Tabela Price.${cidadao}`}}
+    const dia=F.cap&&F.capPer==="DIARIA",pu=(x,N)=>pmtUnit(x,dc,pv,N,dia);
+    if(calc==="VF"){vf=r2(pc/pu(i,n));solver={k:"valorFinanciado",valor:v(vf),desc:`Valor Financiado: R$ ${v(vf)}`,premissa:`Valor Financiado calculado (R$ ${v(vf)}) a partir do prazo, da taxa e da parcela informados, pela fórmula da Tabela Price.${cidadao}`}}
     else if(calc==="TAXA"){
-      const g=x=>vf*ajf(x)*fat(x,n);
-      if(pc<=g(0)+.005)er.parcela="Parcela não cobre o valor financiado";else if(pc>g(.3))er.parcela="Resulta em taxa acima de 30% a.m.";
+      const g=x=>vf*pu(x,n);
+      if(pc<=g(0)+.005)er.parcela="Parcela não cobre o Valor Financiado";else if(pc>g(.3))er.parcela="Resulta em taxa acima de 30% a.m.";
       else{let lo=0,hi=.3;for(let k=0;k<200;k++){const m=(lo+hi)/2;g(m)<pc?lo=m:hi=m}i=(lo+hi)/2;
         const t6=(100*i).toLocaleString("pt-BR",{minimumFractionDigits:4,maximumFractionDigits:6});
-        solver={k:"taxa",valor:t6,desc:`Taxa de juros: ${t6}% a.m.`,premissa:`Taxa de juros calculada (${t6}% a.m.) a partir do valor financiado, do prazo e da parcela informados, pela fórmula da Tabela Price.${cidadao}`}}
+        solver={k:"taxa",valor:t6,desc:`Taxa de juros: ${t6}% a.m.`,premissa:`Taxa de juros calculada (${t6}% a.m.) a partir do Valor Financiado, do prazo e da parcela informados, pela fórmula da Tabela Price.${cidadao}`}}
     }else if(calc==="N"){
       const vfa=vf*ajf(i);let nr;
-      if(i===0)nr=vfa/pc;else if(pc<=vfa*i+.005){er.parcela="Parcela não cobre os juros do período"}else nr=-Math.log(1-vfa*i/pc)/Math.log(1+i);
+      if(dia){const P=m=>vf*pu(i,m);if(P(600)>pc+.005)er.parcela="Parcela não cobre os juros do período";else{let m=1;while(P(m)>pc+.005)m++;nr=m===1?1:(m-1)+(P(m-1)-pc)/(P(m-1)-P(m))}}
+      else if(i===0)nr=vfa/pc;else if(pc<=vfa*i+.005){er.parcela="Parcela não cobre os juros do período"}else nr=-Math.log(1-vfa*i/pc)/Math.log(1+i);
       if(nr!=null){n=Math.round(nr);
         if(n<1||n>600)er.parcela="Resulta em prazo fora de 1 a 600 parcelas";
         else{const frac=Math.abs(nr-n)>.01?` O cálculo exato dá ${nr.toLocaleString("pt-BR",{maximumFractionDigits:2})} parcelas; arredondado para ${n}, com a última parcela ajustando a diferença.`:"";
-          solver={k:"nParcelas",valor:String(n),desc:`Nº de parcelas: ${n}`,premissa:`Nº de parcelas calculado (${n}) a partir do valor financiado, da taxa e da parcela informados, pela fórmula da Tabela Price.${frac}${cidadao}`}}}
-    }else if(calc==="NENHUM")solver={k:null,valor:null,desc:"Nenhum (quatro valores informados)",premissa:"Valor financiado, prazo, taxa e parcela informados. O cronograma usa a parcela informada; a última parcela absorve eventual diferença."};
-    else solver={k:"parcela",valor:null,desc:"Parcela",premissa:F.sistema==="PRICE"?`Parcela calculada a partir do valor financiado, do prazo e da taxa informados, pela fórmula da Tabela Price.${cidadao}`:"Parcelas calculadas pelo SAC a partir do valor financiado, do prazo e da taxa informados."};
+          solver={k:"nParcelas",valor:String(n),desc:`Nº de parcelas: ${n}`,premissa:`Nº de parcelas calculado (${n}) a partir do Valor Financiado, da taxa e da parcela informados, pela fórmula da Tabela Price.${frac}${cidadao}`}}}
+    }else if(calc==="NENHUM")solver={k:null,valor:null,desc:"Nenhum (quatro valores informados)",premissa:"Valor Financiado, prazo, taxa e parcela informados. O cronograma usa a parcela informada; a última parcela absorve eventual diferença."};
+    else solver={k:"parcela",valor:null,desc:"Parcela",premissa:F.sistema==="PRICE"?`Parcela calculada a partir do Valor Financiado, do prazo e da taxa informados, pela fórmula da Tabela Price.${cidadao}`:"Parcelas calculadas pelo SAC a partir do Valor Financiado, do prazo e da taxa informados."};
     if(vf!=null&&sg+tar>=vf)er.seguro="Seguro e tarifas somam mais que o financiado";
   }
   if(Object.keys(er).length)return{er,e:null};
-  return{er,e:{sistema:F.sistema,calc,solver,dataContrato:dc,primeiroVenc:pv,nParcelas:n,taxaMensal:i,pmtFixo:calc==="PARCELA"?null:pc,valorFinanciado:vf,seguro:sg,tarifas:tar,
-    encargo:F.encargo,multa:mu/100,mora:mo/100,cp:cp!=null?cp/100:0,remAtraso:F.remAtraso,capitalizacao:F.cap,imputacao:F.imput,
+  return{er,e:{sistema:F.sistema,calc,solver,dataContrato:dc,primeiroVenc:pv,nParcelas:n,taxaMensal:i,pmtFixo:calc==="PARCELA"?null:pc,capDiaria:F.cap&&F.capPer==="DIARIA",valorFinanciado:vf,seguro:sg,tarifas:tar,
+    encargo:cp?"CP":"PADRAO",multa:mu/100,mora:mo/100,cp:cp!=null?cp/100:0,remAtraso:F.remAtraso,capitalizacao:F.cap,imputacao:F.imput,
     feriados:F.feriados.map(pdata).filter(Boolean),modoAntecipacao:F.modo,dataBase:F.apurar?db:null,pagamentos:pgs}};
 }
 
@@ -511,29 +523,28 @@ function seg(k,label,ops,hint){
   return `<div class="field" role="radiogroup" aria-labelledby="l-${k}"><span class="lbl" id="l-${k}">${label}</span><div class="seg" data-seg="${k}">${ops.map(([val,t])=>`<button type="button" role="radio" aria-checked="${F[k]===val}" data-v="${val}">${t}</button>`).join("")}</div>${hint?`<span class="hint">${hint}</span>`:""}</div>`;
 }
 function renderForm(){
-  const cp=F.encargo==="CP",price=F.sistema==="PRICE",ro=c=>(!price&&c==="PARCELA"?{ro:true}:{});
+  const cp=num(F.cp)>0,price=F.sistema==="PRICE",ro=c=>(!price&&c==="PARCELA"?{ro:true}:{});
   $("form").innerHTML=`
   <fieldset><legend>Contrato</legend>
     ${seg("sistema","Sistema de amortização",[["PRICE","Price"],["SAC","SAC"]])}
     <div class="g2">${campo("dataContrato","Data de celebração",{type:"date",req:true})}${campo("primeiroVenc","1º vencimento",{type:"date",req:true})}
-    ${campo("valorFinanciado","Valor financiado",{suf:"R$",...ro("VF")})}${campo("nParcelas","Nº de parcelas",ro("N"))}
-    ${campo("taxa","Taxa de juros",{suf:"% a.m.",...ro("TAXA")})}${campo("parcela",price?"Parcela":"1ª parcela",{suf:"R$",...ro("PARCELA")})}
+    ${campo("valorFinanciado","Valor Financiado",{suf:"R$",...ro("VF")})}${campo("nParcelas","Nº de parcelas",ro("N"))}
+    ${campo("taxa","Taxa de juros",{suf:"% a.m.",...ro("TAXA")})}${campo("parcela",price?"Valor da Parcela":"Valor da 1ª Parcela",{suf:"R$",...ro("PARCELA")})}
     ${campo("seguro","Seguro financiado",{suf:"R$"})}${campo("tarifas","Tarifas financiadas",{suf:"R$"})}</div>
     <p class="hint" id="liberado"></p>
     <label class="check" for="i-cap"><input id="i-cap" type="checkbox" ${F.cap?"checked":""}><span>O contrato prevê capitalização de juros</span></label>
-    ${seg("encargo","Encargos do atraso",[["PADRAO","Juros, mora e multa"],["CP","Comissão de permanência"]])}
-    <div id="cp-box" ${cp?"":"hidden"}>${campo("cp","Comissão de permanência",{suf:"% a.m.",req:true})}</div>
+    <div id="capper-box" ${F.cap?"":"hidden"}>${seg("capPer","Periodicidade da capitalização",[["MENSAL","Mensal"],["DIARIA","Diária"]])}</div>
+    ${campo("cp","Comissão de permanência",{suf:"% a.m.",hint:"Preenchida, substitui multa e juros no atraso (Súmula 472/STJ)."})}
     <div class="g2">${campo("multa","Multa",{suf:"%"})}${campo("mora","Juros de mora",{suf:"% a.m."})}</div>
-    <p class="hint" id="cp-hint" ${cp?"":"hidden"}>Com comissão de permanência, multa e mora servem só para conferir o teto da Súmula 472/STJ.</p>
-    <label class="check" for="i-rem" id="rem-box" ${cp?"hidden":""}><input id="i-rem" type="checkbox" ${F.remAtraso?"checked":""}><span>Juros remuneratórios também no período de atraso</span></label>
+    <label class="check" for="i-rem" id="rem-box"><input id="i-rem" type="checkbox" ${F.remAtraso?"checked":""}><span>Juros remuneratórios também no período de atraso</span></label>
     <div class="field"><span class="lbl">Feriados locais</span>
       <div id="fe-list" style="display:flex;flex-direction:column;gap:6px"></div>
       <button type="button" class="btn-sm" id="fe-add" style="align-self:flex-start">Adicionar feriado local</button>
       <span class="hint">Fins de semana e feriados bancários nacionais já estão incluídos. Pagamento no dia útil seguinte não gera encargos.</span></div>
   </fieldset>
   <fieldset><legend id="pg-legend">Pagamentos</legend>
-    ${seg("imput","Pagamento de parcela vencida",[["354","Encargos primeiro (art. 354 CC)"],["PROP","Proporcional"]],"Como o valor se divide entre encargos e capital da parcela em atraso.")}
-    ${seg("modo","Valor pago além das parcelas vencidas",[["PRAZO","Reduz o prazo"],["PARCELA","Reduz a parcela"]],"Antecipa parcelas futuras com desconto à taxa do contrato.")}
+    ${seg("imput","Pagamento de Parcela em Atraso",[["354","Encargos primeiro (art. 354 CC)"],["PROP","Proporcional"]],"Como o valor se divide entre encargos e capital da parcela em atraso.")}
+    ${seg("modo","Pagamento Extraordinário",[["PRAZO","Reduz o prazo"],["PARCELA","Reduz a parcela"]],"Valor pago além das Parcelas em Atraso: antecipa Parcelas Vincendas com desconto à taxa do contrato.")}
     <div style="display:flex;flex-direction:column;gap:6px">
       <div class="mini-row list-head"><span>Data</span><span>Valor (R$)</span><span></span></div>
       <div id="pg-list" style="display:flex;flex-direction:column;gap:6px"></div>
@@ -545,7 +556,7 @@ function renderForm(){
       <button type="button" class="btn-pri" id="colar-ok" style="align-self:flex-start;font-size:12px;padding:4px 10px">Incluir linhas</button>
     </div>
   </fieldset>
-  <fieldset><legend>Apuração do saldo devedor</legend><div id="apur"></div></fieldset>`;
+  <fieldset><legend>Saldo Devedor Reconstruído</legend><div id="apur"></div></fieldset>`;
   renderFeriados();renderPgs();renderApur();
 }
 function renderFeriados(){
@@ -556,14 +567,19 @@ function renderPgs(){
   $("pg-legend").textContent=`Pagamentos (${F.pagamentos.filter(p=>p.data||p.valor).length})`;
 }
 function renderApur(){
-  $("apur").innerHTML=F.apurar?`<div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end">${campo("dataBase","Saldo devedor em",{type:"date",req:true})}<button type="button" class="btn-sm" id="apur-off" style="margin-bottom:22px">Remover</button></div>`
-    :`<div style="display:flex;flex-direction:column;gap:4px"><button type="button" class="btn-sm" id="apur-on" style="align-self:flex-start">Apurar saldo devedor em uma data</button><span class="hint">Sem data, a calculadora reconstrói as parcelas restantes até a quitação.</span></div>`;
+  $("apur").innerHTML=F.apurar?`<div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end">${campo("dataBase","Data-Base",{type:"date",req:true})}<button type="button" class="btn-sm" id="apur-off" style="margin-bottom:22px">Remover</button></div>`
+    :`<div style="display:flex;flex-direction:column;gap:4px"><button type="button" class="btn-sm" id="apur-on" style="align-self:flex-start">Informar Data-Base</button><span class="hint">Sem Data-Base, a calculadora reconstrói as parcelas restantes até a quitação.</span></div>`;
 }
 function renderTop(){
   $("top-actions").innerHTML=(confirmar
     ?`<span class="confirm">Apagar os dados atuais?<button type="button" class="del" id="b-del">Apagar</button><button type="button" id="b-cancel">Cancelar</button></span>`
     :`<button type="button" class="btn-pri" id="b-novo">Novo contrato</button>`);
   
+}
+function syncCP(){
+  const on=num(F.cp)>0;
+  ["multa","mora"].forEach(k=>{const i=$("i-"+k);if(i){i.disabled=on;$("f-"+k).classList.toggle("off",on)}});
+  const r=$("i-rem");if(r){r.disabled=on;$("rem-box").classList.toggle("off",on)}
 }
 function marcarCalc(k,valor){
   Object.values(CAMPO).forEach(c=>{const f=$("f-"+c),i=$("i-"+c),h=$("h-"+c),on=c===k;if(!f)return;
@@ -578,7 +594,7 @@ function marcarErros(er){
 }
 
 /* ---------- resultados ---------- */
-const STATUS={"Em aberto":"p-crit","Parcial em aberto":"p-crit","Paga em atraso":"p-warn","Antecipada":"p-info","A vencer (reduzida)":"p-info","Paga":"p-ok","A vencer":"p-mut"};
+const STATUS={"Em atraso":"p-crit","Em atraso (parcial)":"p-crit","Paga em atraso":"p-warn","Antecipada":"p-info","Vincenda (reduzida)":"p-info","Paga":"p-ok","Vincenda":"p-mut"};
 const MARCA={crit:["Crítico","!"],warn:["Atenção","▲"],ok:["Conferido","✓"],info:["Informação","i"]};
 function tabela(cab,linhas,rod){
   const td=(c,j)=>`<td${j>=2&&typeof c==="string"&&/^-?[\d.]+,\d{2}$|^\d+$/.test(c)?' class="r"':""}>${c}</td>`;
@@ -589,18 +605,18 @@ const kpi=(rot,val,nota,o={})=>`<div class="kpi"><span class="eyebrow">${rot}</s
 
 let ultimo=null;
 function render(){
-  const {er,e}=entrada();marcarCalc(CAMPO[modoCalc()]||null,"");marcarErros(er);salvar();
+  const {er,e}=entrada();syncCP();marcarCalc(CAMPO[modoCalc()]||null,"");marcarErros(er);salvar();
   const R=$("results");
-  if(!e){ultimo=null;R.innerHTML=`<div class="empty" role="status"><h2>Faltam dados para calcular</h2><p style="margin-top:4px">Obrigatórios: data de celebração, 1º vencimento e três entre valor financiado, nº de parcelas, taxa e parcela. O que ficar em branco é calculado.</p></div>`;$("liberado").textContent="";return}
+  if(!e){ultimo=null;R.innerHTML=`<div class="empty" role="status"><h2>Faltam dados para calcular</h2><p style="margin-top:4px">Obrigatórios: data de celebração, 1º vencimento e três entre Valor Financiado, nº de parcelas, taxa e Valor da Parcela. O que ficar em branco é calculado.</p></div>`;$("liberado").textContent="";return}
   const t=calcular(e);ultimo={e,t};
   if(e.solver.k)marcarCalc(e.solver.k,e.solver.k==="parcela"?v(t.parcelas[0].valor):e.solver.valor);
-  $("liberado").innerHTML=`Valor liberado (financiado − seguro − tarifas): <span class="num" style="color:var(--fg)">R$ ${v(t.liberado)}</span>`;
+  $("liberado").innerHTML=`Valor Liberado (Valor Financiado − seguro − tarifas): <span class="num" style="color:var(--fg)">R$ ${v(t.liberado)}</span>`;
   const CP=e.encargo==="CP",encL=CP?"Comissão de permanência":"Juros remuneratórios do atraso";
   const al=alertas(e,t),cnt=n=>al.filter(a=>a.n===n).length;
-  const k=[kpi(e.sistema==="PRICE"?"Parcela":"1ª parcela (SAC)",`R$ ${v(t.parcelas[0].valor)}`,e.sistema==="PRICE"?`${e.nParcelas} × · total R$ ${v(t.totais.parcelas)}`:`última R$ ${v(t.parcelas[t.parcelas.length-1].valor)} · total R$ ${v(t.totais.parcelas)}`),
-    kpi("Taxa efetiva",`${pct(t.taxas.anualEf)} a.a.`,`${pct(t.taxas.mensal)} a.m. · nominal ${pct(t.taxas.nominal)} a.a.`),
-    kpi("CET",t.taxas.cetM==null?"–":`${pct(t.taxas.cetM)} a.m.`,t.taxas.cetA==null?"valor liberado inválido":`${pct(t.taxas.cetA)} a.a. sobre R$ ${v(t.liberado)} liberados`),
-    e.dataBase?kpi(`Saldo devedor em ${dbr(e.dataBase)}`,`R$ ${v(t.saldo.total)}`,`a valor presente · nominal R$ ${v(t.saldo.totalNom)}`+(t.saldo.vencidas>0?` · R$ ${v(t.saldo.vencidas)} vencidos`:""),{hl:1,al:t.saldo.vencidas>0})
+  const k=[kpi(e.sistema==="PRICE"?"Valor da Parcela":"Valor da 1ª Parcela (SAC)",`R$ ${v(t.parcelas[0].valor)}`,e.sistema==="PRICE"?`${e.nParcelas} × · total R$ ${v(t.totais.parcelas)}`:`última R$ ${v(t.parcelas[t.parcelas.length-1].valor)} · total R$ ${v(t.totais.parcelas)}`),
+    kpi("Taxa efetiva",`${pct(t.taxas.anualEf)} a.a.`,e.capDiaria?`${pct(t.taxas.mensalEf)} a.m. · ${pct(t.taxas.mensal/30,4)} a.d. capitalizada por dia`:`${pct(t.taxas.mensal)} a.m. · nominal ${pct(t.taxas.nominal)} a.a.`),
+    kpi("CET",t.taxas.cetM==null?"–":`${pct(t.taxas.cetM)} a.m.`,t.taxas.cetA==null?"Valor Liberado inválido":`${pct(t.taxas.cetA)} a.a. sobre R$ ${v(t.liberado)} liberados`),
+    e.dataBase?kpi(`Saldo Devedor Reconstruído em ${dbr(e.dataBase)}`,`R$ ${v(t.saldo.total)}`,`a valor presente · nominal R$ ${v(t.saldo.totalNom)}`+(t.saldo.vencidas>0?` · R$ ${v(t.saldo.vencidas)} vencidos`:""),{hl:1,al:t.saldo.vencidas>0})
       :kpi("Até a quitação",t.restante.qtd?`${t.restante.qtd} parcela(s)`:"Quitado",t.restante.qtd?`R$ ${v(t.restante.total)} nominais · última em ${dbr(t.restante.ultima)}`:"nenhuma parcela em aberto",{hl:1,al:t.saldo.vencidas>0})].join("");
   const tabs=[["resumo","Resumo"],["tabela","Tabela de amortização"],["situacao","Situação das parcelas"],["pagamentos","Pagamentos"],["premissas","Premissas do cálculo"],["relatorio","Relatório"]];
   const pagosTot=r2(t.pgs.filter(x=>!x.posBase).reduce((a,x)=>a+x.valor,0));
@@ -611,16 +627,16 @@ function render(){
   <div style="display:flex;flex-direction:column;gap:12px">
     <div class="tabs" role="tablist">${tabs.map(([id,l])=>`<button type="button" role="tab" id="tab-${id}" aria-selected="${aba===id}" data-tab="${id}">${l}</button>`).join("")}</div>
     <div ${aba==="resumo"?"":"hidden"}><div class="cards">
-      ${e.dataBase?`<div class="card"><h3>Saldo devedor em ${dbr(e.dataBase)}</h3><dl>
-        ${dl("Parcelas vencidas em aberto",t.saldo.vencidas,{al:t.saldo.vencidas>0})}
+      ${e.dataBase?`<div class="card"><h3>Saldo Devedor Reconstruído em ${dbr(e.dataBase)}</h3><dl>
+        ${dl("Parcelas em Atraso",t.saldo.vencidas,{al:t.saldo.vencidas>0})}
         ${CP?dl("Comissão de permanência",t.saldo.rem):`${e.remAtraso?dl("Juros remuneratórios do atraso",t.saldo.rem):""}${dl("Juros de mora",t.saldo.mora)}${dl("Multa",t.saldo.multa)}`}
-        ${dl("Parcelas a vencer, a valor presente",t.saldo.vincVP)}
-        ${dl("Saldo devedor (a vencer a valor presente)",t.saldo.total,{tot:1})}
-        ${dl("Parcelas a vencer, valor nominal",t.saldo.vincNom,{sub:1})}
-        ${dl("Saldo devedor (a vencer pelo valor nominal)",t.saldo.totalNom,{sub:1})}</dl></div>`
-       :`<div class="card"><h3>Parcelas até a quitação</h3><dl>${dl("Parcelas restantes",0,{t:String(t.restante.qtd)})}${dl("Valor nominal restante",t.restante.total)}${dl("Última parcela",0,{t:t.restante.ultima?dbr(t.restante.ultima):"–"})}${dl("Vencidas em aberto (hoje)",t.saldo.vencidas,{al:t.saldo.vencidas>0})}</dl></div>`}
-      <div class="card"><h3>Valor financiado e taxas</h3><dl>${dl("Valor financiado",t.financiado)}${dl("Seguro financiado",e.seguro)}${e.tarifas?dl("Tarifas financiadas",e.tarifas):""}${dl("Valor liberado",t.liberado,{tot:1})}${dl("Total de juros do contrato",t.totais.juros)}${dl("Total das parcelas",t.totais.parcelas)}${dl("1º período de juros",0,{t:t.f1.toLocaleString("pt-BR",{maximumFractionDigits:2})+(t.f1>1.0001?" meses (com carência)":" mês")})}</dl></div>
-      ${t.semPagamentos?"":`<div class="card"><h3>Pagamentos considerados</h3><dl>${dl("Total pago considerado",pagosTot)}${dl(encL,t.resumoPg.rem)}${CP?"":dl("Juros de mora",t.resumoPg.mora)+dl("Multa",t.resumoPg.multa)}${dl("Amortização extraordinária",t.resumoPg.antecip)}</dl></div>`}
+        ${dl("Parcelas Vincendas, a valor presente",t.saldo.vincVP)}
+        ${dl("Saldo Devedor Reconstruído (Vincendas a valor presente)",t.saldo.total,{tot:1})}
+        ${dl("Parcelas Vincendas, valor nominal",t.saldo.vincNom,{sub:1})}
+        ${dl("Saldo Devedor Reconstruído (Vincendas pelo valor nominal)",t.saldo.totalNom,{sub:1})}</dl></div>`
+       :`<div class="card"><h3>Parcelas até a quitação</h3><dl>${dl("Parcelas restantes",0,{t:String(t.restante.qtd)})}${dl("Valor nominal restante",t.restante.total)}${dl("Última parcela",0,{t:t.restante.ultima?dbr(t.restante.ultima):"–"})}${dl("Parcelas em Atraso (hoje)",t.saldo.vencidas,{al:t.saldo.vencidas>0})}</dl></div>`}
+      <div class="card"><h3>Valor Financiado e taxas</h3><dl>${dl("Valor Financiado",t.financiado)}${dl("Seguro financiado",e.seguro)}${e.tarifas?dl("Tarifas financiadas",e.tarifas):""}${dl("Valor Liberado",t.liberado,{tot:1})}${dl("Total de juros do contrato",t.totais.juros)}${dl("Soma das Prestações",t.totais.parcelas)}${dl("1º período de juros",0,{t:t.f1.toLocaleString("pt-BR",{maximumFractionDigits:2})+(t.f1>1.0001?" meses (com carência)":" mês")})}</dl></div>
+      ${t.semPagamentos?"":`<div class="card"><h3>Pagamentos considerados</h3><dl>${dl("Valor Total Pago",pagosTot)}${dl(encL,t.resumoPg.rem)}${CP?"":dl("Juros de mora",t.resumoPg.mora)+dl("Multa",t.resumoPg.multa)}${dl("Pagamento Extraordinário",t.resumoPg.antecip)}</dl></div>`}
     </div></div>
     <div ${aba==="tabela"?"":"hidden"} style="display:flex;flex-direction:column;gap:8px">
       <div class="tbar"><p class="cap">Cronograma contratual ${e.sistema==="PRICE"?"Price":"SAC"}, sem considerar pagamentos.</p><span class="row"><span id="cp-tab" class="copied"></span><button type="button" class="btn-sm" data-copy="tabela">Copiar para o Excel</button></span></div>
@@ -632,8 +648,8 @@ function render(){
     </div>
     <div ${aba==="pagamentos"?"":"hidden"} style="display:flex;flex-direction:column;gap:8px">
       <p class="cap">Como cada pagamento foi imputado (${e.imputacao==="354"?"encargos primeiro, art. 354 do CC":"proporcional"}).</p>
-      ${t.semPagamentos?`<p>Nenhum pagamento informado.</p>`:tabela(["Data","Valor","Destino","Principal","Dias de atraso",CP?"Comissão":"Juros atraso","Mora","Multa","Redução nominal"],
-        t.pgs.flatMap(x=>x.posBase?[[dbr(x.data),v(x.valor),"Após a data-base","","","","","",""]]:x.aplic.map((y,j)=>[j===0?dbr(x.data):"",j===0?v(x.valor):"",y.tipo==="parcela"?`Parcela ${y.n}`:y.tipo==="antecipacao"?"Antecipação":"Excedente",v(y.principal),y.diasAtraso?String(y.diasAtraso):"",y.rem?v(y.rem):"",y.mora?v(y.mora):"",y.multa?v(y.multa):"",y.desconto?v(y.desconto+y.principal):""])))}
+      ${t.semPagamentos?`<p>Nenhum pagamento informado.</p>`:tabela(["Data","Valor","Destino","Capital Pago","Dias de atraso",CP?"Comissão":"Juros atraso","Mora","Multa","Redução nominal"],
+        t.pgs.flatMap(x=>x.posBase?[[dbr(x.data),v(x.valor),"Após a Data-Base","","","","","",""]]:x.aplic.map((y,j)=>[j===0?dbr(x.data):"",j===0?v(x.valor):"",y.tipo==="parcela"?`Parcela ${y.n}`:y.tipo==="antecipacao"?"Pagamento Extraordinário":"Excedente",v(y.principal),y.diasAtraso?String(y.diasAtraso):"",y.rem?v(y.rem):"",y.mora?v(y.mora):"",y.multa?v(y.multa):"",y.desconto?v(y.desconto+y.principal):""])))}
     </div>
     <div ${aba==="premissas"?"":"hidden"}><div class="prem"><h3>Premissas do cálculo</h3><ol>${premissas(e,t).map(([a,b])=>`<li><strong>${a}.</strong> ${b}</li>`).join("")}</ol></div></div>
     <div ${aba==="relatorio"?"":"hidden"} style="display:flex;flex-direction:column;gap:8px">
@@ -649,17 +665,17 @@ function relatorio(e,t){
   const T=(cab,linhas,rod)=>`<table style="border-collapse:collapse"><thead><tr>${cab.map(c=>`<th>${c}</th>`).join("")}</tr></thead><tbody>${linhas.map(l=>`<tr>${l.map((c,j)=>`<td${j>=2?' style="text-align:right"':""}>${c}</td>`).join("")}</tr>`).join("")}</tbody>${rod?`<tfoot><tr>${rod.map((c,j)=>`<td${j>=2?' style="text-align:right"':""}><b>${c}</b></td>`).join("")}</tr></tfoot>`:""}</table>`;
   const kv=l=>`<table style="border-collapse:collapse"><tbody>${l.map(([a,b])=>`<tr><th>${a}</th><td style="text-align:right">${b}</td></tr>`).join("")}</tbody></table>`;
   const cond=[["Sistema de amortização",e.sistema==="PRICE"?"Tabela Price":"SAC"],["Data de celebração",dbr(e.dataContrato)],["1º vencimento",dbr(e.primeiroVenc)],["Nº de parcelas",e.nParcelas],
-    ["Taxa de juros",`${pct(e.taxaMensal,4)} a.m.`],["Taxa anual equivalente",`${pct(t.taxas.anualEf,4)} a.a.`],["Valor financiado","R$ "+v(t.financiado)],["Seguro financiado","R$ "+v(e.seguro)],["Tarifas financiadas","R$ "+v(e.tarifas)],["Valor liberado","R$ "+v(t.liberado)],
-    [e.sistema==="PRICE"?"Parcela":"1ª parcela","R$ "+v(t.parcelas[0].valor)],["Valor calculado",e.solver.desc],["CET calculado",t.taxas.cetM==null?"–":`${pct(t.taxas.cetM,4)} a.m. · ${pct(t.taxas.cetA,4)} a.a.`],
-    ["Capitalização pactuada",e.capitalizacao?"Sim":"Não"],["Encargos do atraso",CP?`Comissão de permanência ${pct(e.cp)} a.m.`:`Multa ${pct(e.multa)} · mora ${pct(e.mora)} a.m.${e.remAtraso?" · remuneratórios à taxa do contrato":""}`]];
+    ["Taxa de juros",`${pct(e.taxaMensal,4)} a.m.`],["Taxa anual equivalente",`${pct(t.taxas.anualEf,4)} a.a.`],["Valor Financiado","R$ "+v(t.financiado)],["Seguro financiado","R$ "+v(e.seguro)],["Tarifas financiadas","R$ "+v(e.tarifas)],["Valor Liberado","R$ "+v(t.liberado)],
+    [e.sistema==="PRICE"?"Valor da Parcela":"Valor da 1ª Parcela","R$ "+v(t.parcelas[0].valor)],["Valor calculado",e.solver.desc],["CET calculado",t.taxas.cetM==null?"–":`${pct(t.taxas.cetM,4)} a.m. · ${pct(t.taxas.cetA,4)} a.a.`],
+    ["Capitalização pactuada",e.capitalizacao?(e.capDiaria?"Sim, diária":"Sim, mensal"):"Não"],["Encargos de Atraso",CP?`Comissão de permanência ${pct(e.cp)} a.m.`:`Multa ${pct(e.multa)} · mora ${pct(e.mora)} a.m.${e.remAtraso?" · remuneratórios à taxa do contrato":""}`]];
   let s=1;const H=x=>`<h4>${s++}. ${x}</h4>`;
-  return `<h2>Memória de cálculo · reconstrução contratual</h2><p>Data-base: ${e.dataBase?dbr(e.dataBase):dbr(t.base)+" (hoje)"} · emitida em ${dbr(hoje())}</p>
+  return `<h2>Memória de cálculo · Reconstrução</h2><p>Data-Base: ${e.dataBase?dbr(e.dataBase):dbr(t.base)+" (hoje)"} · emitida em ${dbr(hoje())}</p>
   ${H("Condições do contrato")}${kv(cond)}
   ${H("Premissas do cálculo")}<ol>${premissas(e,t).map(([a,b])=>`<li><b>${a}.</b> ${b}</li>`).join("")}</ol>
   ${H("Evolução contratual")}${T(["Nº","Vencimento","Parcela","Juros","Amortização","Saldo devedor"],t.parcelas.map(x=>[x.n,dbr(x.venc),v(x.valor),v(x.juros),v(x.amort),v(x.saldo)]),["Total","",v(t.totais.parcelas),v(t.totais.juros),v(t.financiado),""])}
-  ${t.semPagamentos?"":H("Imputação dos pagamentos")+T(["Data","Valor","Destino","Principal","Dias de atraso",CP?"Comissão":"Juros atraso","Mora","Multa","Redução nominal"],t.pgs.flatMap(x=>x.posBase?[[dbr(x.data),v(x.valor),"Após a data-base","","","","","",""]]:x.aplic.map((y,j)=>[j===0?dbr(x.data):"",j===0?v(x.valor):"",y.tipo==="parcela"?`Parcela ${y.n}`:y.tipo==="antecipacao"?"Antecipação":"Excedente",v(y.principal),y.diasAtraso||"",y.rem?v(y.rem):"",y.mora?v(y.mora):"",y.multa?v(y.multa):"",y.desconto?v(y.desconto+y.principal):""])))}
+  ${t.semPagamentos?"":H("Imputação dos pagamentos")+T(["Data","Valor","Destino","Capital Pago","Dias de atraso",CP?"Comissão":"Juros atraso","Mora","Multa","Redução nominal"],t.pgs.flatMap(x=>x.posBase?[[dbr(x.data),v(x.valor),"Após a Data-Base","","","","","",""]]:x.aplic.map((y,j)=>[j===0?dbr(x.data):"",j===0?v(x.valor):"",y.tipo==="parcela"?`Parcela ${y.n}`:y.tipo==="antecipacao"?"Pagamento Extraordinário":"Excedente",v(y.principal),y.diasAtraso||"",y.rem?v(y.rem):"",y.mora?v(y.mora):"",y.multa?v(y.multa):"",y.desconto?v(y.desconto+y.principal):""])))}
   ${H("Situação das parcelas")}${T(["Nº","Vencimento","Valor original","Valor atual","Pago","Encargos pagos","Em aberto","Encargos em aberto","Status"],t.sit.map(x=>[x.n,dbr(x.venc),v(x.original),v(x.atual),v(x.pagoPrincipal),v(x.encargosPagos),v(x.aberto),v(x.encRem+x.encMora+x.encMulta),x.status]))}
-  ${e.dataBase?H(`Saldo devedor em ${dbr(e.dataBase)}`)+kv([["Parcelas vencidas em aberto","R$ "+v(t.saldo.vencidas)],...(CP?[["Comissão de permanência","R$ "+v(t.saldo.rem)]]:[["Juros remuneratórios do atraso","R$ "+v(t.saldo.rem)],["Juros de mora","R$ "+v(t.saldo.mora)],["Multa","R$ "+v(t.saldo.multa)]]),["Parcelas a vencer, a valor presente","R$ "+v(t.saldo.vincVP)],["<b>Saldo devedor (a vencer a valor presente)</b>","<b>R$ "+v(t.saldo.total)+"</b>"],["Parcelas a vencer, valor nominal","R$ "+v(t.saldo.vincNom)],["Saldo devedor (a vencer pelo valor nominal)","R$ "+v(t.saldo.totalNom)]]):""}`;
+  ${e.dataBase?H(`Saldo Devedor Reconstruído em ${dbr(e.dataBase)}`)+kv([["Parcelas em Atraso","R$ "+v(t.saldo.vencidas)],...(CP?[["Comissão de permanência","R$ "+v(t.saldo.rem)]]:[["Juros remuneratórios do atraso","R$ "+v(t.saldo.rem)],["Juros de mora","R$ "+v(t.saldo.mora)],["Multa","R$ "+v(t.saldo.multa)]]),["Parcelas Vincendas, a valor presente","R$ "+v(t.saldo.vincVP)],["<b>Saldo Devedor Reconstruído (Vincendas a valor presente)</b>","<b>R$ "+v(t.saldo.total)+"</b>"],["Parcelas Vincendas, valor nominal","R$ "+v(t.saldo.vincNom)],["Saldo Devedor Reconstruído (Vincendas pelo valor nominal)","R$ "+v(t.saldo.totalNom)]]):""}`;
 }
 function htmlWord(){
   const doc=$("rel-doc").cloneNode(true);
@@ -705,7 +721,7 @@ document.addEventListener("input",ev=>{
 });
 document.addEventListener("change",ev=>{
   const el=ev.target;
-  if(el.id==="i-cap"){F.cap=el.checked;mudou()}
+  if(el.id==="i-cap"){F.cap=el.checked;$("capper-box").hidden=!F.cap;mudou()}
   if(el.id==="i-rem"){F.remAtraso=el.checked;mudou()}
 });
 document.addEventListener("click",ev=>{
@@ -713,7 +729,6 @@ document.addEventListener("click",ev=>{
   const sg=b.closest("[data-seg]");
   if(sg){const k=sg.dataset.seg;F[k]=b.dataset.v;sg.querySelectorAll("button").forEach(x=>x.setAttribute("aria-checked",String(x===b)));
     if(k==="sistema"||k==="calc"){renderForm();mudou();return}
-    if(k==="encargo"){const cp=F.encargo==="CP";$("cp-box").hidden=!cp;$("cp-hint").hidden=!cp;$("rem-box").hidden=cp}
     mudou();return}
   if(b.dataset.tab){aba=b.dataset.tab;render();$("tab-"+aba)?.focus();return}
   if(b.dataset.copy){copiar(b.dataset.copy);return}
