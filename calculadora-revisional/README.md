@@ -11,8 +11,8 @@ Os campos com asterisco vermelho ao lado do nome são obrigatórios.
 | Campo | Observação |
 |---|---|
 | Sistema de amortização | Price ou SAC |
-| Valor a calcular | Só na Price. Informe três entre parcela, taxa, prazo e valor financiado; a calculadora encontra o quarto |
-| Data do contrato e 1º vencimento | O 1º período usa os dias efetivos entre as datas (base 30) |
+| Valor financiado, nº de parcelas, taxa e parcela | Na Price, informe três; o campo deixado em branco é calculado. Com os quatro informados, o cronograma usa a parcela informada. No SAC, a parcela é sempre calculada |
+| Data de celebração e 1º vencimento | O 1º período usa os dias efetivos entre as datas (base 30) |
 | Seguro e tarifas financiados | Opcionais; entram no CET e geram alertas |
 | Capitalização de juros | Caixa de seleção: define juros compostos ou simples nos encargos do atraso |
 | Encargos do atraso | Juros remuneratórios, mora e multa, ou comissão de permanência |

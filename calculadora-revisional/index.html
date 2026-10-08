@@ -127,6 +127,8 @@ textarea{border:1px solid var(--input);border-radius:4px;background:var(--card);
 .alert ul.av li{font-size:12px;line-height:1.45}
 .readonly .box{background:var(--soft);border-style:dashed}
 .readonly .box input{font-weight:500;color:var(--gold-ink)}
+.calc .box{background:var(--soft);border-style:dashed}
+.calc .box input::placeholder{font-weight:500;color:var(--gold-ink);opacity:1}
 .counts{display:flex;flex-wrap:wrap;align-items:center;gap:4px 16px}
 .counts span{font-size:12px;font-weight:700}
 .tabs{align-self:flex-start;display:flex;flex-wrap:wrap;gap:4px;background:var(--soft);border-radius:4px;padding:4px}
@@ -373,7 +375,7 @@ function alertas(e,t){
   }
   if(!e.capitalizacao&&e.sistema==="PRICE")a.push({n:"warn",ti:"Price sem capitalização pactuada",tx:"A fase de normalidade segue a Tabela Price contratada; os encargos do atraso foram calculados com juros simples.",
     ind:"Indício de capitalização não pactuada (Súmulas 539 e 541/STJ; art. 5º da MP 2.170-36/2001).",
-    av:["cláusula expressa de capitalização ou taxa anual superior a 12 vezes a mensal no contrato","data do contrato (capitalização mensal só a partir de 31/03/2000)"]});
+    av:["cláusula expressa de capitalização ou taxa anual superior a 12 vezes a mensal no contrato","data de celebração (capitalização mensal só a partir de 31/03/2000)"]});
   const venc=t.sit.filter(x=>x.venc<=t.base&&(x.aberto>.004||x.encRem+x.encMora+x.encMulta>.004));
   if(venc.length)a.push({n:"crit",ti:`${venc.length} parcela(s) vencida(s) em aberto`,tx:`Parcelas ${venc.map(x=>x.n).join(", ")}: R$ ${v(t.saldo.vencidas)} de principal, mais R$ ${v(t.saldo.rem+t.saldo.mora+t.saldo.multa)} de encargos até ${br}.`,
     fund:"Mora no vencimento (art. 397 do Código Civil). Só a abusividade nos encargos da normalidade descaracteriza a mora (REsp 1.061.530/RS, repetitivo).",
@@ -443,7 +445,7 @@ let F,exemplo,mostrarErros=true,confirmar=false,colar=false,aba="resumo",colarTx
   for(const k of [KEY,...OLDS]){
     try{const s=JSON.parse(localStorage.getItem(k)||"null");if(s&&s.form){
       if(s.exemplo)break;
-      F={...VAZIO(),...s.form};if(!s.form.parcela)F.parcela=s.form.parcelaContrato||"";if(!["PARCELA","TAXA","N","VF"].includes(F.calc))F.calc="PARCELA";return}}catch{}
+      F={...VAZIO(),...s.form};if(!s.form.parcela)F.parcela=s.form.parcelaContrato||"";return}}catch{}
   }
   F=VAZIO();exemplo=false;
 })();
@@ -451,18 +453,21 @@ const salvar=()=>{try{localStorage.setItem(KEY,JSON.stringify({form:F,exemplo}))
 
 /* ---------- quatro valores: informa três, calcula o quarto ---------- */
 const CAMPO={PARCELA:"parcela",TAXA:"taxa",N:"nParcelas",VF:"valorFinanciado"};
-const NOME={PARCELA:"Parcela",TAXA:"Taxa de juros",N:"Nº de parcelas",VF:"Valor financiado"};
+const vazio=k=>!String(F[k]??"").trim();
+/* Price: o valor em branco é o calculado; nenhum em branco usa os quatro informados; dois ou mais em branco é erro (null). SAC: parcela sempre calculada. */
+function modoCalc(){if(F.sistema!=="PRICE")return"PARCELA";const b=Object.keys(CAMPO).filter(c=>vazio(CAMPO[c]));return b.length===1?b[0]:b.length===0?"NENHUM":null}
 function entrada(){
   const er={},dc=pdata(F.dataContrato),pv=pdata(F.primeiroVenc),db=pdata(F.dataBase);
-  const calc=F.sistema==="PRICE"?F.calc:"PARCELA";
+  const calc=modoCalc();
+  if(!calc)Object.values(CAMPO).forEach(k=>{if(vazio(k))er[k]="Informe três dos quatro valores"});
   if(!dc)er.dataContrato="Informe a data";
   if(!pv)er.primeiroVenc="Informe a data";else if(dc&&pv<=dc)er.primeiroVenc="Deve ser posterior ao contrato";
   if(F.apurar&&!db)er.dataBase="Informe a data";
   let n=null,tx=null,vf=null,pc=null;
-  if(calc!=="N"){n=parseInt(F.nParcelas,10);if(!(n>0&&n<=600))er.nParcelas="Entre 1 e 600"}
-  if(calc!=="TAXA"){tx=num(F.taxa);if(tx==null||tx<0||tx>30)er.taxa="Taxa mensal inválida"}
-  if(calc!=="VF"){vf=num(F.valorFinanciado);if(vf==null||vf<=0)er.valorFinanciado="Informe o valor"}
-  if(calc!=="PARCELA"){pc=num(F.parcela);if(pc==null||pc<=0)er.parcela="Informe a parcela"}
+  if(calc&&calc!=="N"){n=parseInt(F.nParcelas,10);if(!(n>0&&n<=600))er.nParcelas="Entre 1 e 600"}
+  if(calc&&calc!=="TAXA"){tx=num(F.taxa);if(tx==null||tx<0||tx>30)er.taxa="Taxa mensal inválida"}
+  if(calc&&calc!=="VF"){vf=num(F.valorFinanciado);if(vf==null||vf<=0)er.valorFinanciado="Informe o valor"}
+  if(calc&&calc!=="PARCELA"){pc=num(F.parcela);if(pc==null||pc<=0)er.parcela="Informe a parcela"}
   const nn=(k)=>{const x=num(F[k]);if(x!=null&&x<0)er[k]="Não pode ser negativo";return x??0};
   const sg=nn("seguro"),tar=nn("tarifas"),mu=nn("multa"),mo=nn("mora");
   let cp=null;if(F.encargo==="CP"){cp=num(F.cp);if(cp==null||cp<0||cp>30)er.cp="Informe a taxa da comissão"}
@@ -486,7 +491,8 @@ function entrada(){
         if(n<1||n>600)er.parcela="Resulta em prazo fora de 1 a 600 parcelas";
         else{const frac=Math.abs(nr-n)>.01?` O cálculo exato dá ${nr.toLocaleString("pt-BR",{maximumFractionDigits:2})} parcelas; arredondado para ${n}, com a última parcela ajustando a diferença.`:"";
           solver={k:"nParcelas",valor:String(n),desc:`Nº de parcelas: ${n}`,premissa:`Nº de parcelas calculado (${n}) a partir do valor financiado, da taxa e da parcela informados, pela fórmula da Tabela Price.${frac}${cidadao}`}}}
-    }else solver={k:"parcela",valor:null,desc:"Parcela",premissa:F.sistema==="PRICE"?`Parcela calculada a partir do valor financiado, do prazo e da taxa informados, pela fórmula da Tabela Price.${cidadao}`:"Parcelas calculadas pelo SAC a partir do valor financiado, do prazo e da taxa informados."};
+    }else if(calc==="NENHUM")solver={k:null,valor:null,desc:"Nenhum (quatro valores informados)",premissa:"Valor financiado, prazo, taxa e parcela informados. O cronograma usa a parcela informada; a última parcela absorve eventual diferença."};
+    else solver={k:"parcela",valor:null,desc:"Parcela",premissa:F.sistema==="PRICE"?`Parcela calculada a partir do valor financiado, do prazo e da taxa informados, pela fórmula da Tabela Price.${cidadao}`:"Parcelas calculadas pelo SAC a partir do valor financiado, do prazo e da taxa informados."};
     if(vf!=null&&sg+tar>=vf)er.seguro="Seguro e tarifas somam mais que o financiado";
   }
   if(Object.keys(er).length)return{er,e:null};
@@ -499,18 +505,17 @@ function entrada(){
 const $=id=>document.getElementById(id);
 function campo(k,label,{suf,type,hint,ro,req}={}){
   const h=ro?"Calculado":(hint||"");
-  return `<label class="field${ro?" readonly":""}" id="f-${k}" for="i-${k}"><span class="lbl">${label}${req&&!ro?'<span class="req" aria-hidden="true">*</span>':""}</span><span class="box"><input id="i-${k}" ${ro?"readonly tabindex=\"-1\"":`data-k="${k}"${req?" required aria-required=\"true\"":""}`} ${type?`type="${type}"`:'inputmode="decimal"'} value="${esc(F[k])}">${suf?`<span class="suf">${suf}</span>`:""}</span><span class="hint" id="h-${k}" data-hint="${esc(h)}">${esc(h)}</span></label>`;
+  return `<label class="field${ro?" readonly":""}" id="f-${k}" for="i-${k}"><span class="lbl">${label}${req&&!ro?'<span class="req" aria-hidden="true">*</span>':""}</span><span class="box"><input id="i-${k}" ${ro?"readonly tabindex=\"-1\"":`data-k="${k}"${req?" required aria-required=\"true\"":""}`} ${type?`type="${type}"`:'inputmode="decimal"'} value="${ro?"":esc(F[k])}">${suf?`<span class="suf">${suf}</span>`:""}</span><span class="hint" id="h-${k}" data-hint="${esc(h)}">${esc(h)}</span></label>`;
 }
 function seg(k,label,ops,hint){
   return `<div class="field" role="radiogroup" aria-labelledby="l-${k}"><span class="lbl" id="l-${k}">${label}</span><div class="seg" data-seg="${k}">${ops.map(([val,t])=>`<button type="button" role="radio" aria-checked="${F[k]===val}" data-v="${val}">${t}</button>`).join("")}</div>${hint?`<span class="hint">${hint}</span>`:""}</div>`;
 }
 function renderForm(){
-  const cp=F.encargo==="CP",price=F.sistema==="PRICE",calc=price?F.calc:"PARCELA",ro=c=>({ro:calc===c,req:true});
+  const cp=F.encargo==="CP",price=F.sistema==="PRICE",ro=c=>(!price&&c==="PARCELA"?{ro:true}:{});
   $("form").innerHTML=`
   <fieldset><legend>Contrato</legend>
     ${seg("sistema","Sistema de amortização",[["PRICE","Price"],["SAC","SAC"]])}
-    ${price?seg("calc","Valor a calcular",[["PARCELA","Parcela"],["TAXA","Taxa"],["N","Prazo"],["VF","Financiado"]],"Informe os outros três; o marcado é calculado."):""}
-    <div class="g2">${campo("dataContrato","Data do contrato",{type:"date",req:true})}${campo("primeiroVenc","1º vencimento",{type:"date",req:true})}
+    <div class="g2">${campo("dataContrato","Data de celebração",{type:"date",req:true})}${campo("primeiroVenc","1º vencimento",{type:"date",req:true})}
     ${campo("valorFinanciado","Valor financiado",{suf:"R$",...ro("VF")})}${campo("nParcelas","Nº de parcelas",ro("N"))}
     ${campo("taxa","Taxa de juros",{suf:"% a.m.",...ro("TAXA")})}${campo("parcela",price?"Parcela":"1ª parcela",{suf:"R$",...ro("PARCELA")})}
     ${campo("seguro","Seguro financiado",{suf:"R$"})}${campo("tarifas","Tarifas financiadas",{suf:"R$"})}</div>
@@ -560,6 +565,10 @@ function renderTop(){
     :`<button type="button" class="btn-pri" id="b-novo">Novo contrato</button>`);
   
 }
+function marcarCalc(k,valor){
+  Object.values(CAMPO).forEach(c=>{const f=$("f-"+c),i=$("i-"+c),h=$("h-"+c),on=c===k;if(!f)return;
+    f.classList.toggle("calc",on);i.placeholder=on?valor:"";h.dataset.hint=on?"Calculado":""});
+}
 function marcarErros(er){
   document.querySelectorAll(".field[id^='f-']").forEach(el=>{
     const k=el.id.slice(2),h=$("h-"+k),m=mostrarErros&&er[k];el.classList.toggle("err",!!m);
@@ -580,11 +589,11 @@ const kpi=(rot,val,nota,o={})=>`<div class="kpi"><span class="eyebrow">${rot}</s
 
 let ultimo=null;
 function render(){
-  const {er,e}=entrada();marcarErros(er);salvar();
+  const {er,e}=entrada();marcarCalc(CAMPO[modoCalc()]||null,"");marcarErros(er);salvar();
   const R=$("results");
-  if(!e){ultimo=null;const k=CAMPO[F.sistema==="PRICE"?F.calc:"PARCELA"],ri=$("i-"+k);if(ri)ri.value="";R.innerHTML=`<div class="empty" role="status"><h2>Faltam dados para calcular</h2><p style="margin-top:4px">Obrigatórios: data do contrato, 1º vencimento, nº de parcelas, taxa mensal e valor financiado.</p></div>`;$("liberado").textContent="";return}
+  if(!e){ultimo=null;R.innerHTML=`<div class="empty" role="status"><h2>Faltam dados para calcular</h2><p style="margin-top:4px">Obrigatórios: data de celebração, 1º vencimento e três entre valor financiado, nº de parcelas, taxa e parcela. O que ficar em branco é calculado.</p></div>`;$("liberado").textContent="";return}
   const t=calcular(e);ultimo={e,t};
-  const sv=e.solver.k==="parcela"?v(t.parcelas[0].valor):e.solver.valor;F[e.solver.k]=sv;const ri=$("i-"+e.solver.k);if(ri)ri.value=sv;salvar();
+  if(e.solver.k)marcarCalc(e.solver.k,e.solver.k==="parcela"?v(t.parcelas[0].valor):e.solver.valor);
   $("liberado").innerHTML=`Valor liberado (financiado − seguro − tarifas): <span class="num" style="color:var(--fg)">R$ ${v(t.liberado)}</span>`;
   const CP=e.encargo==="CP",encL=CP?"Comissão de permanência":"Juros remuneratórios do atraso";
   const al=alertas(e,t),cnt=n=>al.filter(a=>a.n===n).length;
@@ -639,7 +648,7 @@ function relatorio(e,t){
   const CP=e.encargo==="CP";
   const T=(cab,linhas,rod)=>`<table style="border-collapse:collapse"><thead><tr>${cab.map(c=>`<th>${c}</th>`).join("")}</tr></thead><tbody>${linhas.map(l=>`<tr>${l.map((c,j)=>`<td${j>=2?' style="text-align:right"':""}>${c}</td>`).join("")}</tr>`).join("")}</tbody>${rod?`<tfoot><tr>${rod.map((c,j)=>`<td${j>=2?' style="text-align:right"':""}><b>${c}</b></td>`).join("")}</tr></tfoot>`:""}</table>`;
   const kv=l=>`<table style="border-collapse:collapse"><tbody>${l.map(([a,b])=>`<tr><th>${a}</th><td style="text-align:right">${b}</td></tr>`).join("")}</tbody></table>`;
-  const cond=[["Sistema de amortização",e.sistema==="PRICE"?"Tabela Price":"SAC"],["Data do contrato",dbr(e.dataContrato)],["1º vencimento",dbr(e.primeiroVenc)],["Nº de parcelas",e.nParcelas],
+  const cond=[["Sistema de amortização",e.sistema==="PRICE"?"Tabela Price":"SAC"],["Data de celebração",dbr(e.dataContrato)],["1º vencimento",dbr(e.primeiroVenc)],["Nº de parcelas",e.nParcelas],
     ["Taxa de juros",`${pct(e.taxaMensal,4)} a.m.`],["Taxa anual equivalente",`${pct(t.taxas.anualEf,4)} a.a.`],["Valor financiado","R$ "+v(t.financiado)],["Seguro financiado","R$ "+v(e.seguro)],["Tarifas financiadas","R$ "+v(e.tarifas)],["Valor liberado","R$ "+v(t.liberado)],
     [e.sistema==="PRICE"?"Parcela":"1ª parcela","R$ "+v(t.parcelas[0].valor)],["Valor calculado",e.solver.desc],["CET calculado",t.taxas.cetM==null?"–":`${pct(t.taxas.cetM,4)} a.m. · ${pct(t.taxas.cetA,4)} a.a.`],
     ["Capitalização pactuada",e.capitalizacao?"Sim":"Não"],["Encargos do atraso",CP?`Comissão de permanência ${pct(e.cp)} a.m.`:`Multa ${pct(e.multa)} · mora ${pct(e.mora)} a.m.${e.remAtraso?" · remuneratórios à taxa do contrato":""}`]];
