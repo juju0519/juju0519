@@ -508,7 +508,6 @@ function renderForm(){
   const cp=F.encargo==="CP",price=F.sistema==="PRICE",calc=price?F.calc:"PARCELA",ro=c=>({ro:calc===c,req:true});
   $("form").innerHTML=`
   <fieldset><legend>Contrato</legend>
-    <p class="hint"><span class="req" aria-hidden="true">*</span> Campo obrigatório</p>
     ${seg("sistema","Sistema de amortização",[["PRICE","Price"],["SAC","SAC"]])}
     ${price?seg("calc","Valor a calcular",[["PARCELA","Parcela"],["TAXA","Taxa"],["N","Prazo"],["VF","Financiado"]],"Informe os outros três; o marcado é calculado."):""}
     <div class="g2">${campo("dataContrato","Data do contrato",{type:"date",req:true})}${campo("primeiroVenc","1º vencimento",{type:"date",req:true})}

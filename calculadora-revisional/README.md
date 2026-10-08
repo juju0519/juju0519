@@ -6,7 +6,7 @@ Para usar, abra `index.html` no navegador. Os dados digitados ficam salvos só n
 
 ## Entrada
 
-Os campos marcados com asterisco vermelho são obrigatórios.
+Os campos com asterisco vermelho ao lado do nome são obrigatórios.
 
 | Campo | Observação |
 |---|---|
